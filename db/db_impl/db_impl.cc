@@ -24,6 +24,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <string>
 
 #include "db/builder.h"
 #include "db/compaction/compaction_job.h"
@@ -148,6 +149,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
                const bool seq_per_batch, const bool batch_per_txn)
     : env_(options.env),
       dbname_(dbname),
+      blvd_(nullptr),
       own_info_log_(options.info_log == nullptr),
       initial_db_options_(SanitizeOptions(dbname, options)),
       immutable_db_options_(initial_db_options_),
@@ -1485,6 +1487,29 @@ Status DBImpl::Get(const ReadOptions& read_options,
   return GetImpl(read_options, column_family, key, value);
 }
 
+void DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
+    char* data;
+    size_t len;
+    size_t offset = std::stol(loc.data());
+    blvd_->Get(offset, &data, &len);
+    value->assign(data, len);
+}
+
+Status DBImpl::GetExternal(const ReadOptions& options,
+                   ColumnFamilyHandle* column_family, const Slice& key,
+                   std::string* value) {
+    assert(value != nullptr);
+    PinnableSlice pinnable_val;
+    auto s = GetImpl(options, column_family, key, &pinnable_val);
+    if (!s.ok()) {
+        return s;
+    }
+
+    GetExternalImpl(pinnable_val, value);
+    return s;
+}
+
+ 
 Status DBImpl::GetImpl(const ReadOptions& read_options,
                        ColumnFamilyHandle* column_family, const Slice& key,
                        PinnableSlice* pinnable_val, bool* value_found,

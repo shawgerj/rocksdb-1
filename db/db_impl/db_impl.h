@@ -61,6 +61,8 @@
 #include "util/stop_watch.h"
 #include "util/thread_local.h"
 
+#include "boulevardier/boulevardier.h"
+
 namespace rocksdb {
 
 class Arena;
@@ -138,6 +140,12 @@ class DBImpl : public DB {
   virtual Status Put(const WriteOptions& options,
                      ColumnFamilyHandle* column_family, const Slice& key,
                      const Slice& value) override;
+
+  using DB::PutExternal;
+  virtual Status PutExternal(const WriteOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             const Slice& value, size_t* offset) override;
+    
   using DB::Merge;
   virtual Status Merge(const WriteOptions& options,
                        ColumnFamilyHandle* column_family, const Slice& key,
@@ -162,6 +170,11 @@ class DBImpl : public DB {
   virtual Status Get(const ReadOptions& options,
                      ColumnFamilyHandle* column_family, const Slice& key,
                      PinnableSlice* value) override;
+
+  using DB::GetExternal;
+  virtual Status GetExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             std::string* value) override;
 
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(
@@ -401,6 +414,9 @@ class DBImpl : public DB {
 
   // Function that Get and KeyMayExist call with no_io true or false
   // Note: 'value_found' from KeyMayExist propagates here
+
+  void GetExternalImpl(PinnableSlice& loc, std::string* value);
+    
   Status GetImpl(const ReadOptions& options, ColumnFamilyHandle* column_family,
                  const Slice& key, PinnableSlice* value,
                  bool* value_found = nullptr, ReadCallback* callback = nullptr,
@@ -911,6 +927,7 @@ class DBImpl : public DB {
  protected:
   Env* const env_;
   const std::string dbname_;
+  Boulevardier* blvd_;
   std::unique_ptr<VersionSet> versions_;
   // Flag to check whether we allocated and own the info log file
   bool own_info_log_;
@@ -1934,6 +1951,8 @@ class DBImpl : public DB {
   InstrumentedCondVar atomic_flush_install_cv_;
 
   bool wal_in_db_path_;
+
+
 };
 
 extern Options SanitizeOptions(const std::string& db, const Options& src);

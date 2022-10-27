@@ -260,6 +260,11 @@ extern ROCKSDB_LIBRARY_API void rocksdb_put_cf(
     rocksdb_column_family_handle_t* column_family, const char* key,
     size_t keylen, const char* val, size_t vallen, char** errptr);
 
+extern ROCKSDB_LIBRARY_API void rocksdb_put_external(
+    rocksdb_t* db, const rocksdb_writeoptions_t* options, const char* key,
+    size_t keylen, const char* val, size_t vallen,
+    size_t* offset, char** errptr);
+
 extern ROCKSDB_LIBRARY_API void rocksdb_delete(
     rocksdb_t* db, const rocksdb_writeoptions_t* options, const char* key,
     size_t keylen, char** errptr);

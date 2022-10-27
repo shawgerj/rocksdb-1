@@ -27,6 +27,11 @@ Status DBImpl::Put(const WriteOptions& o, ColumnFamilyHandle* column_family,
                    const Slice& key, const Slice& val) {
   return DB::Put(o, column_family, key, val);
 }
+    
+Status DBImpl::PutExternal(const WriteOptions& o, ColumnFamilyHandle* column_family,
+                           const Slice& key, const Slice& val, size_t* offset) {
+    return DB::PutExternal(o, column_family, key, val, offset);
+}
 
 Status DBImpl::Merge(const WriteOptions& o, ColumnFamilyHandle* column_family,
                      const Slice& key, const Slice& val) {
@@ -1946,6 +1951,11 @@ Status DB::Put(const WriteOptions& opt, ColumnFamilyHandle* column_family,
   return Write(opt, &batch);
 }
 
+Status DB::PutExternal(const WriteOptions& opt, ColumnFamilyHandle* column_family,
+                       const Slice& key, const Slice& value, size_t* offset) {
+    return PutExternal(opt, column_family, key, value, offset);
+}
+ 
 Status DB::Delete(const WriteOptions& opt, ColumnFamilyHandle* column_family,
                   const Slice& key) {
   WriteBatch batch;

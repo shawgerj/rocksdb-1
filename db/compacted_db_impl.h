@@ -1,3 +1,4 @@
+
 //  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under both the GPLv2 (found in the
 //  COPYING file in the root directory) and Apache 2.0 License
@@ -24,6 +25,14 @@ class CompactedDBImpl : public DBImpl {
   virtual Status Get(const ReadOptions& options,
                      ColumnFamilyHandle* column_family, const Slice& key,
                      PinnableSlice* value) override;
+
+  using DB::GetExternal;
+  virtual Status GetExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             std::string* value) override {
+      return Status::NotSupported("Not supported in compacted db mode.");
+  }
+    
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(
       const ReadOptions& options,
@@ -37,6 +46,16 @@ class CompactedDBImpl : public DBImpl {
                      const Slice& /*key*/, const Slice& /*value*/) override {
     return Status::NotSupported("Not supported in compacted db mode.");
   }
+    
+  using DBImpl::PutExternal;
+  virtual Status PutExternal(const WriteOptions& /*options*/,
+                             ColumnFamilyHandle* /*column_family*/,
+                             const Slice& /*key*/, const Slice& /*value*/,
+                             size_t* offset) override {
+      (void)offset;
+    return Status::NotSupported("Not supported in compacted db mode.");
+  }
+    
   using DBImpl::Merge;
   virtual Status Merge(const WriteOptions& /*options*/,
                        ColumnFamilyHandle* /*column_family*/,

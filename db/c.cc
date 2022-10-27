@@ -843,6 +843,17 @@ void rocksdb_put_cf(
               Slice(key, keylen), Slice(val, vallen)));
 }
 
+void rocksdb_put_external(
+    rocksdb_t* db,
+    const rocksdb_writeoptions_t* options,
+    const char* key, size_t keylen,
+    const char* val, size_t vallen,
+    size_t* offset, char** errptr) {
+  SaveError(errptr,
+            db->rep->PutExternal(options->rep, Slice(key, keylen),
+                                 Slice(val, vallen), offset));
+}
+
 void rocksdb_delete(
     rocksdb_t* db,
     const rocksdb_writeoptions_t* options,

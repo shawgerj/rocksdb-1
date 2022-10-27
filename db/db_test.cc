@@ -2443,6 +2443,14 @@ class ModelDB : public DB {
     batch.Put(cf, k, v);
     return Write(o, &batch);
   }
+  using DB::PutExternal;
+  Status PutExternal(const WriteOptions& /*options*/,
+                     ColumnFamilyHandle* /*column_family*/,
+                     const Slice& /*key*/, const Slice& /*value*/,
+                     size_t* offset) override {
+      (void)offset;
+      return Status::NotSupported("Not supported in ModelDB.");
+  }
   using DB::Close;
   Status Close() override { return Status::OK(); }
   using DB::Delete;
@@ -2472,6 +2480,12 @@ class ModelDB : public DB {
     return Status::NotSupported(key);
   }
 
+  using DB::GetExternal;
+  Status GetExternal(const ReadOptions& options,
+                     ColumnFamilyHandle* column_family, const Slice& key,
+                     std::string* value) override {
+      return Status::NotSupported("Not supported in ModelDB.");
+  }
   using DB::MultiGet;
   std::vector<Status> MultiGet(
       const ReadOptions& /*options*/,

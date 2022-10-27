@@ -308,6 +308,14 @@ class DB {
     return Put(options, DefaultColumnFamily(), key, value);
   }
 
+  virtual Status PutExternal(const WriteOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             const Slice& value, size_t* offset) = 0;
+  virtual Status PutExternal(const WriteOptions& options, const Slice& key,
+                             const Slice& value, size_t* offset) {
+      return PutExternal(options, DefaultColumnFamily(), key, value, offset);
+  }
+
   // Remove the database entry (if any) for "key".  Returns OK on
   // success, and a non-OK status on error.  It is not an error if "key"
   // did not exist in the database.
@@ -409,6 +417,16 @@ class DB {
   virtual Status Get(const ReadOptions& options, const Slice& key,
                      std::string* value) {
     return Get(options, DefaultColumnFamily(), key, value);
+  }
+
+  // TODO: figure out how to do this with PinnableSlice like Get()    
+  virtual inline Status GetExternal(const ReadOptions& options,
+                                    ColumnFamilyHandle* column_family, const Slice& key,
+                                    std::string* value) = 0;
+
+  virtual Status GetExternal(const ReadOptions& options, const Slice& key,
+                             std::string* value) {
+    return GetExternal(options, DefaultColumnFamily(), key, value);
   }
 
   // If keys[i] does not exist in the database, then the i'th returned

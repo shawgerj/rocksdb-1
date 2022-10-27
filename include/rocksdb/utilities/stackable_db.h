@@ -81,12 +81,26 @@ class StackableDB : public DB {
     return db_->Put(options, column_family, key, val);
   }
 
+  using DB::PutExternal;
+  virtual Status PutExternal(const WriteOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             const Slice& val, size_t* offset) override {
+      return db_->PutExternal(options, column_family, key, val, offset);
+  }
+    
   using DB::Get;
   virtual Status Get(const ReadOptions& options,
                      ColumnFamilyHandle* column_family, const Slice& key,
                      PinnableSlice* value) override {
     return db_->Get(options, column_family, key, value);
   }
+
+  using DB::GetExternal;
+  virtual Status GetExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             std::string* value) override {
+    return db_->GetExternal(options, column_family, key, value);
+  }    
 
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(
