@@ -119,6 +119,8 @@ class BlobDBImpl : public BlobDB {
              const Slice& key, PinnableSlice* value,
              uint64_t* expiration) override;
 
+    
+
   using BlobDB::NewIterator;
   virtual Iterator* NewIterator(const ReadOptions& read_options) override;
 

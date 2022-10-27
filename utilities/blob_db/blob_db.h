@@ -93,7 +93,13 @@ class BlobDB : public StackableDB {
     }
     return Put(options, key, value);
   }
-
+  using rocksdb::StackableDB::PutExternal;
+  virtual Status PutExternal(const WriteOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             const Slice& value, size_t* offset) override {
+      return Status::NotSupported("BlobDB not supported operation.");
+  }
+    
   using rocksdb::StackableDB::Delete;
   virtual Status Delete(const WriteOptions& options,
                         ColumnFamilyHandle* column_family,
@@ -145,6 +151,12 @@ class BlobDB : public StackableDB {
                      PinnableSlice* value, uint64_t* expiration) {
     return Get(options, DefaultColumnFamily(), key, value, expiration);
   }
+  using rocksdb::StackableDB::GetExternal;
+  virtual Status GetExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             std::string* value) override {
+      return Status::NotSupported("Not supported operation in blob db.");
+  }                               
 
   using rocksdb::StackableDB::MultiGet;
   virtual std::vector<Status> MultiGet(

@@ -27,6 +27,11 @@ Status DBImpl::Put(const WriteOptions& o, ColumnFamilyHandle* column_family,
                    const Slice& key, const Slice& val) {
   return DB::Put(o, column_family, key, val);
 }
+    
+Status DBImpl::PutExternal(const WriteOptions& o, ColumnFamilyHandle* column_family,
+                           const Slice& key, const Slice& val, size_t* offset) {
+    return DB::PutExternal(o, column_family, key, val, offset);
+}
 
 Status DBImpl::Merge(const WriteOptions& o, ColumnFamilyHandle* column_family,
                      const Slice& key, const Slice& val) {
@@ -56,6 +61,19 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch) {
   return WriteImpl(write_options, my_batch, nullptr, nullptr);
+}
+
+Status DBImpl::WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
+    int ret;
+    item_header *header = (item_header*)malloc(sizeof(item_header));
+    header->ksize = key.size();
+    header->vsize = value.size();
+    
+    ret = blvd_->BlvdWrite(header, key.data(), value.data(), offset);
+    if (ret < 0) {
+        return Status::IOError();
+    }
+    return Status::OK();
 }
 
 #ifndef ROCKSDB_LITE
@@ -1946,6 +1964,14 @@ Status DB::Put(const WriteOptions& opt, ColumnFamilyHandle* column_family,
   return Write(opt, &batch);
 }
 
+Status DB::PutExternal(const WriteOptions& opt, ColumnFamilyHandle* column_family,
+                       const Slice& key, const Slice& value, size_t* offset) {
+    // have boulevardier write data first
+    WriteToExt(key, value, offset);
+    // then just Put() with the offset instead of original value
+    return Put(opt, column_family, key, Slice(std::to_string(*offset)));
+}
+ 
 Status DB::Delete(const WriteOptions& opt, ColumnFamilyHandle* column_family,
                   const Slice& key) {
   WriteBatch batch;
@@ -1960,7 +1986,7 @@ Status DB::SingleDelete(const WriteOptions& opt,
   return Write(opt, &batch);
 }
 
-Status DB::DeleteRange(const WriteOptions& opt,
+  Status DB::DeleteRange(const WriteOptions& opt,
                        ColumnFamilyHandle* column_family,
                        const Slice& begin_key, const Slice& end_key) {
   WriteBatch batch;

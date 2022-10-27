@@ -25,6 +25,7 @@
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/types.h"
 #include "rocksdb/version.h"
+#include "../boulevardier/boulevardier.h"
 
 #ifdef _WIN32
 // Windows API macro interference
@@ -226,6 +227,8 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
+  virtual Status SetBoulevardier(Boulevardier* blvd) { return Status::NotSupported(); }
+
   virtual Status Resume() { return Status::NotSupported(); }
 
   // Close the DB by releasing resources, closing files etc. This should be
@@ -308,6 +311,14 @@ class DB {
     return Put(options, DefaultColumnFamily(), key, value);
   }
 
+  virtual Status PutExternal(const WriteOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             const Slice& value, size_t* offset) = 0;
+  virtual Status PutExternal(const WriteOptions& options, const Slice& key,
+                             const Slice& value, size_t* offset) {
+      return PutExternal(options, DefaultColumnFamily(), key, value, offset);
+  }
+
   // Remove the database entry (if any) for "key".  Returns OK on
   // success, and a non-OK status on error.  It is not an error if "key"
   // did not exist in the database.
@@ -378,6 +389,9 @@ class DB {
   // Returns OK on success, non-OK on failure.
   // Note: consider setting options.sync = true.
   virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;
+  virtual Status WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
+      return Status::NotSupported();
+  }
 
   virtual Status MultiBatchWrite(const WriteOptions& /*options*/,
                                  std::vector<WriteBatch*>&& /*updates*/) {
@@ -409,6 +423,16 @@ class DB {
   virtual Status Get(const ReadOptions& options, const Slice& key,
                      std::string* value) {
     return Get(options, DefaultColumnFamily(), key, value);
+  }
+
+  // TODO: figure out how to do this with PinnableSlice like Get()    
+  virtual inline Status GetExternal(const ReadOptions& options,
+                                    ColumnFamilyHandle* column_family, const Slice& key,
+                                    std::string* value) = 0;
+
+  virtual Status GetExternal(const ReadOptions& options, const Slice& key,
+                             std::string* value) {
+    return GetExternal(options, DefaultColumnFamily(), key, value);
   }
 
   // If keys[i] does not exist in the database, then the i'th returned
