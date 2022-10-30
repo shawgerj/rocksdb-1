@@ -25,6 +25,7 @@
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/types.h"
 #include "rocksdb/version.h"
+#include "../boulevardier/boulevardier.h"
 
 #ifdef _WIN32
 // Windows API macro interference
@@ -226,6 +227,8 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
+  virtual Status SetBoulevardier(Boulevardier* blvd) { return Status::NotSupported(); }
+
   virtual Status Resume() { return Status::NotSupported(); }
 
   // Close the DB by releasing resources, closing files etc. This should be
@@ -386,6 +389,9 @@ class DB {
   // Returns OK on success, non-OK on failure.
   // Note: consider setting options.sync = true.
   virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;
+  virtual Status WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
+      return Status::NotSupported();
+  }
 
   virtual Status MultiBatchWrite(const WriteOptions& /*options*/,
                                  std::vector<WriteBatch*>&& /*updates*/) {

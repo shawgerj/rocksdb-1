@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include "db/builder.h"
 #include "db/compaction/compaction_job.h"
@@ -260,6 +261,11 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   // we won't drop any deletion markers until SetPreserveDeletesSequenceNumber()
   // is called by client and this seqnum is advanced.
   preserve_deletes_seqnum_.store(0);
+}
+
+Status DBImpl::SetBoulevardier(Boulevardier* blvd) {
+    blvd_ = blvd;
+    return Status::OK();
 }
 
 Status DBImpl::Resume() {
@@ -1491,7 +1497,7 @@ void DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
     char* data;
     size_t len;
     size_t offset = std::stol(loc.data());
-    blvd_->Get(offset, &data, &len);
+    blvd_->BlvdGet(offset, &data, &len);
     value->assign(data, len);
 }
 

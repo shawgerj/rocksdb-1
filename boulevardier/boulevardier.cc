@@ -27,58 +27,55 @@ int safe_write(int fd, const char* data, size_t size) {
 }
 
 int safe_read(int fd, char* buf, size_t size) {
-    ssize_t haveread = 0;
+    ssize_t haveread, total;
+    haveread = total = 0;
 
-    for (ssize_t total = 0; total < (ssize_t)size; total += haveread) {
+    for (total = 0; total < (ssize_t)size; total += haveread) {
         haveread = read(fd, buf + haveread, size - haveread);
         if (haveread < 0)
             return -1;
     }
+
     return 0;
 }
 
-int Boulevardier::LogAppend(const char* kdata, size_t ksize,
-                            const char* vdata, size_t vsize, size_t* offset) {
+// append to log
+int Boulevardier::BlvdWrite(item_header* header, const char* kdata,
+                            const char* vdata, size_t* offset) {
     off_t off;
-    if ((off = lseek(_log, 0, SEEK_CUR)) < 0) {
+    if ((off = lseek(_log, 0, SEEK_END)) < 0) {
         std::cout << "Error seeking log" << std::endl;
         return -1;
     }
     *offset = (size_t)off;
 
-    if (safe_write(_log, (const char*)&ksize, sizeof(ksize)) < 0)
+    if (safe_write(_log, (const char*)header, sizeof(item_header)) < 0)
         std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, (const char*)&vsize, sizeof(vsize)) < 0)
+    if (safe_write(_log, kdata, header->ksize) < 0)
         std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, kdata, ksize) < 0)
-        std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, vdata, vsize) < 0)
+    if (safe_write(_log, vdata, header->vsize) < 0)
         std::cout << strerror(errno) << std::endl;
 
     return 0;
 }
 
-int Boulevardier::Get(size_t offset, char** data, size_t* len) {
-    size_t ksize;
-    size_t vsize;
+int Boulevardier::BlvdGet(size_t offset, char** data, size_t* len) {
+    item_header *header = (item_header*)malloc(sizeof(item_header));
     
     lseek(_log, offset, SEEK_SET);
 
-    assert(read(_log, &ksize, sizeof(size_t)) != -1);
-    assert(read(_log, &vsize, sizeof(size_t)) != -1);
+    safe_read(_log, (char*)header, sizeof(item_header));
 
-    char *kbuf = (char*)malloc(ksize * sizeof(char));
-    char *vbuf = (char*)malloc(vsize * sizeof(char));
+    char *kbuf = (char*)malloc(header->ksize * sizeof(char));
+    char *vbuf = (char*)malloc(header->vsize * sizeof(char));
 
-    if (safe_read(_log, kbuf, ksize) < 0)
+    if (safe_read(_log, kbuf, header->ksize) < 0)
         std::cout << strerror(errno) << std::endl;
-    if (safe_read(_log, vbuf, vsize) < 0)
+    if (safe_read(_log, vbuf, header->vsize) < 0)
         std::cout << strerror(errno) << std::endl;
-
-    lseek(_log, offset, SEEK_END);
 
     *data = vbuf;
-    *len = vsize;
+    *len = header->vsize;
     free(kbuf);
 
     return 0;

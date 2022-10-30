@@ -32,7 +32,7 @@
 # 3. cmake ..
 # 4. make -j
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.10)
 project(rocksdb)
 enable_language(CXX)
 enable_language(C)
@@ -194,7 +194,7 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format")
     add_definitions(-D_POSIX_C_SOURCE=1)
   endif()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
   if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
     include(CheckCXXCompilerFlag)
@@ -781,10 +781,12 @@ endif()
 
 # boulevardier library
 set(BLVD_LIB "boulevardier")
+set(BLVD_SHARED_LIB "boulevardier-shared")
 set(BLVD_SOURCE_FILE "boulevardier/boulevardier.cc")
 set(BLVD_HEADER_FILE "boulevardier/boulevardier.h")
 
-add_library("${BLVD_LIB}" SHARED "${BLVD_SOURCE_FILE}")
+add_library("${BLVD_LIB}" STATIC "${BLVD_SOURCE_FILE}")
+add_library("${BLVD_SHARED_LIB}" SHARED "${BLVD_SOURCE_FILE}")
 
 if(WIN32)
   set(SYSTEM_LIBS ${SYSTEM_LIBS} Shlwapi.lib Rpcrt4.lib)
@@ -796,7 +798,7 @@ else()
   add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE
     ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-  target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE ${BLVD_LIB})
+  target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE ${BLVD_SHARED_LIB})
   set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
                         LINKER_LANGUAGE CXX
                         VERSION ${ROCKSDB_VERSION}
@@ -804,6 +806,8 @@ else()
                         CXX_STANDARD 11
                         OUTPUT_NAME "rocksdb")
 endif()
+
+include(CMakeDependentOption)
 
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
 target_link_libraries(${ROCKSDB_STATIC_LIB} PRIVATE
@@ -862,10 +866,8 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
 
   install(DIRECTORY include/rocksdb COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
-  install(
-    TARGETS ${BLVD_LIB}
-    EXPORT RocksDBTargets
-    )
+  install(TARGETS ${BLVD_LIB} EXPORT RocksDBTargets)
+  install(TARGETS ${BLVD_SHARED_LIB} EXPORT RocksDBTargets)  
         
 
   install(
@@ -902,7 +904,8 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
   )
 endif()
 
-option(WITH_TESTS "build with tests" ON)
+CMAKE_DEPENDENT_OPTION(WITH_TESTS "build with tests" ON
+  "CMAKE_BUILD_TYPE STREQUAL Debug" OFF)
 if(WITH_TESTS)
   add_subdirectory(third-party/gtest-1.7.0/fused-src/gtest)
   set(TESTS

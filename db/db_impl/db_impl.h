@@ -133,6 +133,9 @@ class DBImpl : public DB {
 
   // ---- Implementations of the DB interface ----
 
+  using DB::SetBoulevardier;
+  virtual Status SetBoulevardier(Boulevardier* blvd) override;
+
   using DB::Resume;
   virtual Status Resume() override;
 
@@ -161,6 +164,8 @@ class DBImpl : public DB {
   using DB::Write;
   virtual Status Write(const WriteOptions& options,
                        WriteBatch* updates) override;
+  using DB::WriteToExt;
+  virtual Status WriteToExt(const Slice& key, const Slice& value, size_t* offset) override;
 
   using DB::MultiBatchWrite;
   virtual Status MultiBatchWrite(const WriteOptions& options,
