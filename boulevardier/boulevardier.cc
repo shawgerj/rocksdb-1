@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,20 +41,19 @@ int safe_read(int fd, char* buf, size_t size) {
 }
 
 // append to log
-int Boulevardier::BlvdWrite(item_header* header, const char* kdata,
-                            const char* vdata, size_t* offset) {
+int Boulevardier::BlvdWrite(std::string& logdata, std::vector<size_t>* offsets) {
     off_t off;
     if ((off = lseek(_log, 0, SEEK_END)) < 0) {
         std::cout << "Error seeking log" << std::endl;
         return -1;
     }
-    *offset = (size_t)off;
 
-    if (safe_write(_log, (const char*)header, sizeof(item_header)) < 0)
-        std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, kdata, header->ksize) < 0)
-        std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, vdata, header->vsize) < 0)
+    // offsets were relative to data string, not our file
+    for (auto o : *offsets) {
+        o += (size_t)off;
+    }
+
+    if (safe_write(_log, logdata.data(), logdata.size()) < 0)
         std::cout << strerror(errno) << std::endl;
 
     return 0;

@@ -129,8 +129,10 @@ class DBImplSecondary : public DBImpl {
     return Status::NotSupported("Not supported operation in secondary mode.");
   }
 
+  using DBImpl::Write;
   Status Write(const WriteOptions& /*options*/,
-               WriteBatch* /*updates*/) override {
+               WriteBatch* /*updates*/,
+               std::vector<size_t>*) override {
     return Status::NotSupported("Not supported operation in secondary mode.");
   }
 

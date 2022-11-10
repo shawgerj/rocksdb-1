@@ -315,6 +315,8 @@ class WriteBatch : public WriteBatchBase {
   // Returns trie if MarkRollback will be called during Iterate
   bool HasRollback() const;
 
+    // generate offsets and data to write to logfile
+  Status PrepareBlvd(std::vector<size_t>* offsets, std::string* data);
   // Assign timestamp to write batch
   Status AssignTimestamp(const Slice& ts);
 
