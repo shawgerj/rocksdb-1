@@ -149,7 +149,7 @@ class BoulevardierBuilder : public WriteBatch::Handler {
     header->ksize = key.size();
     header->vsize = value.size();
 
-    offsets_->push_back(logstring_.size());
+    offsets_->push_back(logstring_->size());
     logstring_->append((const char*)header, sizeof(item_header));
     logstring_->append(key.data());
     logstring_->append(value.data());
@@ -193,11 +193,11 @@ class BoulevardierBuilder : public WriteBatch::Handler {
     return Status::OK();
   }
 
-  std::vector<size_t> GetOffsets() {
+  std::vector<size_t>* GetOffsets() {
     return offsets_;
   }
 
-  std::string GetData() {
+  std::string* GetData() {
     return logstring_;
   }
 

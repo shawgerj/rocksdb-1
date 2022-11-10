@@ -14,6 +14,7 @@
 #include <inttypes.h>
 
 #include <iostream>
+#include <vector>
 
 #include "db/error_handler.h"
 #include "db/event_helpers.h"
@@ -59,16 +60,13 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
   recoverable_state_pre_release_callback_.reset(callback);
 }
 
-// original write
-Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch) {
-  return WriteImpl(write_options, my_batch, nullptr, nullptr);
-}
-
-// overloaded write - for writing to Boulevardier
-Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch
+// modified write
+Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
-  WriteToExt(my_batch, offset);
-  return WriteImpl(write_options, my_batch, nullptr, nullptr);
+    if (offsets != nullptr) {
+        WriteToExt(my_batch, offsets);
+    }
+    return WriteImpl(write_options, my_batch, nullptr, nullptr);
 }
     
 
@@ -78,10 +76,9 @@ Status DBImpl::WriteToExt(WriteBatch* my_batch, std::vector<size_t>* offsets) {
     }
 
     std::string data;
-    my_batch.PrepareBlvd(offsets, &data)
+    my_batch->PrepareBlvd(offsets, &data);
 
     int ret;
-    
     ret = blvd_->BlvdWrite(data, offsets);
     if (ret < 0) {
         return Status::IOError();
@@ -1977,10 +1974,11 @@ Status DB::Put(const WriteOptions& opt, ColumnFamilyHandle* column_family,
   return Write(opt, &batch);
 }
 
+// shawgerj FIXME
 Status DB::PutExternal(const WriteOptions& opt, ColumnFamilyHandle* column_family,
                        const Slice& key, const Slice& value, size_t* offset) {
     // have boulevardier write data first
-    WriteToExt(key, value, offset);
+//    WriteToExt(key, value, offset);
     // then just Put() with the offset instead of original value
     return Put(opt, column_family, key, Slice(std::to_string(*offset)));
 }

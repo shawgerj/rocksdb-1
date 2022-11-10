@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,19 +41,19 @@ int safe_read(int fd, char* buf, size_t size) {
 }
 
 // append to log
-int Boulevardier::BlvdWrite(std::vector<size_t>* offsets, std::string& logvals) {
-    size_t off;
-    if (((off_t)off = lseek(_log, 0, SEEK_END)) < 0) {
+int Boulevardier::BlvdWrite(std::string& logdata, std::vector<size_t>* offsets) {
+    off_t off;
+    if ((off = lseek(_log, 0, SEEK_END)) < 0) {
         std::cout << "Error seeking log" << std::endl;
         return -1;
     }
 
     // offsets were relative to data string, not our file
     for (auto o : *offsets) {
-      o += off;
+        o += (size_t)off;
     }
 
-    if (safe_write(_log, logvals.data(), logvals.size()) < 0)
+    if (safe_write(_log, logdata.data(), logdata.size()) < 0)
         std::cout << strerror(errno) << std::endl;
 
     return 0;

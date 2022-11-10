@@ -388,10 +388,14 @@ class DB {
   // options.sync=true.
   // Returns OK on success, non-OK on failure.
   // Note: consider setting options.sync = true.
-  virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;
-  virtual Status WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
-      return Status::NotSupported();
+  virtual Status Write(const WriteOptions& options, WriteBatch* updates) {
+      return Write(options, updates, nullptr);
   }
+  virtual Status Write(const WriteOptions& options, WriteBatch* updates, std::vector<size_t>* offsets) = 0;
+
+  // virtual Status WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
+  //     return Status::NotSupported();
+  // }
 
   virtual Status MultiBatchWrite(const WriteOptions& /*options*/,
                                  std::vector<WriteBatch*>&& /*updates*/) {
