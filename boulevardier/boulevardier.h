@@ -8,12 +8,10 @@ typedef struct {
 
 class Boulevardier {
 public:
-    Boulevardier(const char* logname);
+  Boulevardier(const char* logname);
 
-    int BlvdWrite(item_header* header, const char* kdata,
-                  const char* vdata, size_t* offset);
-
-    int BlvdGet(size_t offset, char** data, size_t* len);
+  int BlvdWrite(std::string& data, std::vector<size_t>* offsets);
+  int BlvdGet(size_t offset, char** data, size_t* len);
 
 private:
     std::string _logname;

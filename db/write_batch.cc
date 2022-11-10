@@ -34,6 +34,7 @@
 //    data: uint8[len]
 
 #include "rocksdb/write_batch.h"
+#include "boulevardier/boulevardier.h"
 
 #include <map>
 #include <stack>
@@ -133,6 +134,76 @@ struct BatchContentClassifier : public WriteBatch::Handler {
     content_flags |= ContentFlags::HAS_ROLLBACK;
     return Status::OK();
   }
+};
+
+// shawgerj added
+class BoulevardierBuilder : public WriteBatch::Handler {
+ public:
+  explicit BoulevardierBuilder(std::vector<size_t>* o, std::string* data)
+    : offsets_(o),
+      logstring_(data) {}
+  ~BoulevardierBuilder() override {}
+
+  Status PutCF(uint32_t, const Slice& key, const Slice& value) override {
+    item_header *header = (item_header*)malloc(sizeof(item_header));
+    header->ksize = key.size();
+    header->vsize = value.size();
+
+    offsets_->push_back(logstring_.size());
+    logstring_->append((const char*)header, sizeof(item_header));
+    logstring_->append(key.data());
+    logstring_->append(value.data());
+    return Status::OK();
+  }
+
+  Status DeleteCF(uint32_t, const Slice& key) override {
+    return Status::OK();
+  }
+
+  Status SingleDeleteCF(uint32_t, const Slice& key) override {
+    return Status::OK();
+  }
+
+  Status DeleteRangeCF(uint32_t, const Slice& begin_key,
+                       const Slice& end_key) override {
+    return Status::OK();
+  }
+
+  Status MergeCF(uint32_t, const Slice& key, const Slice&) override {
+    return Status::OK();
+  }
+
+  Status PutBlobIndexCF(uint32_t, const Slice&, const Slice&) override {
+    return Status::OK();
+  }
+
+  Status MarkBeginPrepare(bool) override {
+    return Status::OK();
+  }
+
+  Status MarkEndPrepare(const Slice&) override {
+    return Status::OK();
+  }
+
+  Status MarkCommit(const Slice&) override {
+    return Status::OK();
+  }
+
+  Status MarkRollback(const Slice&) override {
+    return Status::OK();
+  }
+
+  std::vector<size_t> GetOffsets() {
+    return offsets_;
+  }
+
+  std::string GetData() {
+    return logstring_;
+  }
+
+ private:
+  std::vector<size_t>* offsets_;
+  std::string* logstring_;
 };
 
 class TimestampAssigner : public WriteBatch::Handler {
@@ -1166,6 +1237,11 @@ Status WriteBatch::PopSavePoint() {
   save_points_->stack.pop();
 
   return Status::OK();
+}
+
+Status WriteBatch::PrepareBlvd(std::vector<size_t>* offsets, std::string* data) {
+    BoulevardierBuilder blvd_bld(offsets, data);
+    return Iterate(&blvd_bld);
 }
 
 Status WriteBatch::AssignTimestamp(const Slice& ts) {

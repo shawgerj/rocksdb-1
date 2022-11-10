@@ -40,20 +40,19 @@ int safe_read(int fd, char* buf, size_t size) {
 }
 
 // append to log
-int Boulevardier::BlvdWrite(item_header* header, const char* kdata,
-                            const char* vdata, size_t* offset) {
-    off_t off;
-    if ((off = lseek(_log, 0, SEEK_END)) < 0) {
+int Boulevardier::BlvdWrite(std::vector<size_t>* offsets, std::string& logvals) {
+    size_t off;
+    if (((off_t)off = lseek(_log, 0, SEEK_END)) < 0) {
         std::cout << "Error seeking log" << std::endl;
         return -1;
     }
-    *offset = (size_t)off;
 
-    if (safe_write(_log, (const char*)header, sizeof(item_header)) < 0)
-        std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, kdata, header->ksize) < 0)
-        std::cout << strerror(errno) << std::endl;
-    if (safe_write(_log, vdata, header->vsize) < 0)
+    // offsets were relative to data string, not our file
+    for (auto o : *offsets) {
+      o += off;
+    }
+
+    if (safe_write(_log, logvals.data(), logvals.size()) < 0)
         std::cout << strerror(errno) << std::endl;
 
     return 0;

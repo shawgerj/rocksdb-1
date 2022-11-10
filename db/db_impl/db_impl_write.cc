@@ -59,17 +59,30 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
   recoverable_state_pre_release_callback_.reset(callback);
 }
 
+// original write
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch) {
   return WriteImpl(write_options, my_batch, nullptr, nullptr);
 }
 
-Status DBImpl::WriteToExt(const Slice& key, const Slice& value, size_t* offset) {
-    int ret;
-    item_header *header = (item_header*)malloc(sizeof(item_header));
-    header->ksize = key.size();
-    header->vsize = value.size();
+// overloaded write - for writing to Boulevardier
+Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch
+                     std::vector<size_t>* offsets) {
+  WriteToExt(my_batch, offset);
+  return WriteImpl(write_options, my_batch, nullptr, nullptr);
+}
     
-    ret = blvd_->BlvdWrite(header, key.data(), value.data(), offset);
+
+Status DBImpl::WriteToExt(WriteBatch* my_batch, std::vector<size_t>* offsets) {
+    if (my_batch == nullptr) {
+        return Status::Corruption("Batch is nullptr!");
+    }
+
+    std::string data;
+    my_batch.PrepareBlvd(offsets, &data)
+
+    int ret;
+    
+    ret = blvd_->BlvdWrite(data, offsets);
     if (ret < 0) {
         return Status::IOError();
     }
