@@ -41,6 +41,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+#include <iostream>
 
 #include "db/column_family.h"
 #include "db/db_impl/db_impl.h"
@@ -139,20 +140,27 @@ struct BatchContentClassifier : public WriteBatch::Handler {
 // shawgerj added
 class BoulevardierBuilder : public WriteBatch::Handler {
  public:
-  explicit BoulevardierBuilder(std::vector<size_t>* o, std::string* data)
-    : offsets_(o),
-      logstring_(data) {}
+    explicit BoulevardierBuilder(WriteBatch* new_batch, std::vector<size_t>* o,
+                                 std::string* data, size_t loc)
+        : batch_(new_batch),
+          offsets_(o),
+          logstring_(data),
+          loc_(loc) {}
   ~BoulevardierBuilder() override {}
 
   Status PutCF(uint32_t, const Slice& key, const Slice& value) override {
+    batch_->Put(key, std::to_string(logstring_->size() + loc_));
+    // make header
     item_header *header = (item_header*)malloc(sizeof(item_header));
     header->ksize = key.size();
     header->vsize = value.size();
 
-    offsets_->push_back(logstring_->size());
+    // record offset
+    offsets_->push_back(logstring_->size() + loc_);
+    // append header, key, and value to logstring_. This will get written to disk
     logstring_->append((const char*)header, sizeof(item_header));
-    logstring_->append(key.data());
-    logstring_->append(value.data());
+    logstring_->append(key.data(), key.size());
+    logstring_->append(value.data(), value.size());
     return Status::OK();
   }
 
@@ -202,8 +210,10 @@ class BoulevardierBuilder : public WriteBatch::Handler {
   }
 
  private:
+  WriteBatch* batch_;
   std::vector<size_t>* offsets_;
   std::string* logstring_;
+  size_t loc_;
 };
 
 class TimestampAssigner : public WriteBatch::Handler {
@@ -1238,9 +1248,9 @@ Status WriteBatch::PopSavePoint() {
 
   return Status::OK();
 }
-
-Status WriteBatch::PrepareBlvd(std::vector<size_t>* offsets, std::string* data) {
-    BoulevardierBuilder blvd_bld(offsets, data);
+ 
+Status WriteBatch::PrepareBlvd(WriteBatch* new_batch, std::vector<size_t>* offsets, std::string* data, size_t loc) {
+    BoulevardierBuilder blvd_bld(new_batch, offsets, data, loc);
     return Iterate(&blvd_bld);
 }
 

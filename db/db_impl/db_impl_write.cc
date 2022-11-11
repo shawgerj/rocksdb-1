@@ -64,19 +64,27 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
     if (offsets != nullptr) {
-        WriteToExt(my_batch, offsets);
+        WriteBatch new_batch;
+        WriteToExt(my_batch, &new_batch, offsets);
+        return WriteImpl(write_options, &new_batch, nullptr, nullptr);
     }
     return WriteImpl(write_options, my_batch, nullptr, nullptr);
 }
     
 
-Status DBImpl::WriteToExt(WriteBatch* my_batch, std::vector<size_t>* offsets) {
+Status DBImpl::WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
+                          std::vector<size_t>* offsets) {
     if (my_batch == nullptr) {
         return Status::Corruption("Batch is nullptr!");
     }
 
     std::string data;
-    my_batch->PrepareBlvd(offsets, &data);
+    // ask for offset of logfile to write to 
+    size_t loc = blvd_->CurrentOffset();
+
+    // build new WriteBatch - values replaced with locs
+    // build offsets vector
+    my_batch->PrepareBlvd(new_batch, offsets, &data, loc);
 
     int ret;
     ret = blvd_->BlvdWrite(data, offsets);

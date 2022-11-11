@@ -40,6 +40,14 @@ int safe_read(int fd, char* buf, size_t size) {
     return 0;
 }
 
+size_t Boulevardier::CurrentOffset() {
+    off_t off;
+    if ((off = lseek(_log, 0, SEEK_END)) < 0) {
+        std::cout << "Error seeking log" << std::endl;
+        return -1;
+    }
+    return (size_t)off;
+}    
 // append to log
 int Boulevardier::BlvdWrite(std::string& logdata, std::vector<size_t>* offsets) {
     off_t off;
