@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
 #include <algorithm>
 #include <unistd.h>
 
@@ -187,8 +188,10 @@ int testOneDBOneValue() {
     db->SetBoulevardier(blvd.get());
 
     // Put key-value
-    size_t o1;
-    s = db->PutExternal(WriteOptions(), "key1", "value1", &o1);
+    std::vector<size_t> offsets;
+    WriteBatch batch;
+    batch.Put("key1", "value1");
+    s = db->Write(WriteOptions(), &batch, &offsets);
     assert(s.ok());
 
     std::string value;
@@ -222,12 +225,64 @@ int testOneDBMultiValue() {
         kvvec.push_back(KVPair(key, val));
     }
 
-    // Put key-value
-    size_t offset;
+    // Put key-values
+    std::vector<size_t> offsets;
+    WriteBatch batch;
     for (KVPair p : kvvec) {
-        s = db->PutExternal(WriteOptions(), p.GetKey(), p.GetValue(), &offset);
-        assert(s.ok());
+        batch.Put(p.GetKey(), p.GetValue());
     }
+    s = db->Write(WriteOptions(), &batch, &offsets);
+    assert(s.ok());
+
+    std::string value;
+    // get values. Read backwards just in case there's a bug with only reading
+    // sequentially
+    for (int i = kvvec.size() - 1; i >= 0; i--) {
+        s = db->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
+        assert(s.ok());
+        assert(value == kvvec[i].GetValue());
+    }
+
+    delete db;
+    DestroyDB(kDBPath, dbOptions);
+    unlink(logfile.c_str());
+
+    return 1;
+}
+
+int testOneDBMultiValue2() {
+    DB* db;
+    Status s = DB::Open(dbOptions, kDBPath, &db);
+    
+    std::string logfile = rootDir + "/vlog1.txt";
+    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
+    db->SetBoulevardier(blvd.get());
+    
+    RandomGenerator gen;
+    int value_size = 32;
+
+    std::vector<KVPair> kvvec;
+    for (int i = 0; i < 10; i++) {
+        Slice key = gen.Generate(sizeof(int));
+        Slice val = gen.Generate(value_size);
+        kvvec.push_back(KVPair(key, val));
+    }
+
+    // Put key-values
+    // this time, do it as separate batches
+    std::vector<size_t> all_offsets;
+
+    for (KVPair p : kvvec) {
+        std::vector<size_t> offsets;
+        WriteBatch batch;
+        batch.Put(p.GetKey(), p.GetValue());
+        s = db->Write(WriteOptions(), &batch, &offsets);
+        assert(s.ok());
+        for (size_t o : offsets) {
+            all_offsets.push_back(o);
+        }
+    }
+    assert(all_offsets.size() == kvvec.size());
 
     std::string value;
     // get values. Read backwards just in case there's a bug with only reading
@@ -253,10 +308,14 @@ int testOneDBMissingKey() {
     auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
     db->SetBoulevardier(blvd.get());
 
-    // Put key-value
-    size_t o1;
-    s = db->PutExternal(WriteOptions(), "key1", "value1", &o1);
+    std::vector<size_t> offsets;
+    assert(offsets.empty());
+    WriteBatch batch;
+    batch.Put("key1", "value1");
+    batch.Put("key2long", "value2long");
+    s = db->Write(WriteOptions(), &batch, &offsets);
     assert(s.ok());
+    assert(offsets.size() == 2);
 
     std::string value;
     // get value
@@ -284,10 +343,14 @@ int testTwoDBSharedOneValue() {
     db2->SetBoulevardier(blvd.get());
 
     // Put key-value
-    size_t o1;
-    s = db1->PutExternal(WriteOptions(), "key1", "value1", &o1);
+    std::vector<size_t> offset;
+    WriteBatch batch;
+    batch.Put("key1", "value1");
+    s = db1->Write(WriteOptions(), &batch, &offset);
     assert(s.ok());
-    s = db2->Put(WriteOptions(), "key1", std::to_string(o1));
+    WriteBatch batch2;
+    batch2.Put("key1", std::to_string(offset[0]));
+    s = db2->Write(WriteOptions(), &batch2);
     assert(s.ok());
 
     std::string value;
@@ -331,19 +394,21 @@ int testTwoDBSharedMultiValue() {
     }
 
     // Put key-value
-    size_t o1;
-    std::vector<off_t> offsets;
+    WriteBatch batch;
+    std::vector<size_t> offsets;
     for (KVPair p : kvvec) {
-        s = db1->PutExternal(WriteOptions(), p.GetKey(), p.GetValue(), &o1);
-        assert(s.ok());
-        offsets.push_back(o1);
+        batch.Put(p.GetKey(), p.GetValue());
     }
+    s = db1->Write(WriteOptions(), &batch, &offsets);
+    assert(s.ok());
 
     // Put in db2, but don't write values to log
+    WriteBatch batch2;
     for (int i = 0; i < offsets.size(); i++) {
-        s = db2->Put(WriteOptions(), kvvec[i].GetKey(), std::to_string(offsets[i]));
-        assert(s.ok());
+        batch2.Put(kvvec[i].GetKey(), std::to_string(offsets[i]));
     }
+    s = db2->Write(WriteOptions(), &batch2);
+    assert(s.ok());
 
     std::string value;
     // get values. Read backwards just in case there's a bug with only reading
@@ -377,6 +442,7 @@ int main() {
     // correctness tests
     assert(testOneDBOneValue() == 1);
     assert(testOneDBMultiValue() == 1);
+    assert(testOneDBMultiValue2() == 1);
     assert(testOneDBMissingKey() == 1);
     assert(testTwoDBSharedOneValue() == 1);
     assert(testTwoDBSharedMultiValue() == 1);

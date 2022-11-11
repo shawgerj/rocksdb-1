@@ -165,7 +165,8 @@ class DBImpl : public DB {
   virtual Status Write(const WriteOptions& options,
                        WriteBatch* updates, std::vector<size_t>* offsets) override;
 
-  Status WriteToExt(WriteBatch* my_batch, std::vector<size_t>* offset);
+  Status WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
+                    std::vector<size_t>* offset);
 
   using DB::MultiBatchWrite;
   virtual Status MultiBatchWrite(const WriteOptions& options,
