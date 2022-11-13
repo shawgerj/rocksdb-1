@@ -2578,7 +2578,13 @@ class ModelDB : public DB {
     delete reinterpret_cast<const ModelSnapshot*>(snapshot);
   }
 
-  Status Write(const WriteOptions& /*options*/, WriteBatch* batch) override {
+  using DB::Write;
+  Status Write(const WriteOptions& opts, WriteBatch* batch) override {
+      return Write(opts, batch, nullptr);
+  }
+    
+  Status Write(const WriteOptions& /*options*/, WriteBatch* batch,
+               std::vector<size_t>* offsets) {
     class Handler : public WriteBatch::Handler {
      public:
       KVMap* map_;
