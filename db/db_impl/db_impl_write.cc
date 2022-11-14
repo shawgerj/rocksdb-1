@@ -63,36 +63,36 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 // modified write
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
-    if (offsets != nullptr) {
-        WriteBatch new_batch;
-        WriteToExt(my_batch, &new_batch, offsets);
-        return WriteImpl(write_options, &new_batch, nullptr, nullptr);
-    }
-    return WriteImpl(write_options, my_batch, nullptr, nullptr);
+    // if (offsets != nullptr) {
+    //     WriteBatch new_batch;
+    //     WriteToExt(my_batch, &new_batch, offsets);
+    //     return WriteImpl(write_options, &new_batch, nullptr, nullptr);
+    // }
+    return WriteImpl(write_options, my_batch, nullptr, nullptr, 0, false, nullptr, 0, nullptr, offsets);
 }
     
 
-Status DBImpl::WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
-                          std::vector<size_t>* offsets) {
-    if (my_batch == nullptr) {
-        return Status::Corruption("Batch is nullptr!");
-    }
+// Status DBImpl::WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
+//                           std::vector<size_t>* offsets) {
+//     if (my_batch == nullptr) {
+//         return Status::Corruption("Batch is nullptr!");
+//     }
 
-    std::string data;
-    // ask for offset of logfile to write to 
-    size_t loc = blvd_->CurrentOffset();
+//     std::string data;
+//     // ask for offset of logfile to write to 
+//     size_t loc = blvd_->CurrentOffset();
 
-    // build new WriteBatch - values replaced with locs
-    // build offsets vector
-    my_batch->PrepareBlvd(new_batch, offsets, &data, loc);
+//     // build new WriteBatch - values replaced with locs
+//     // build offsets vector
+//     my_batch->PrepareBlvd(new_batch, offsets, &data, loc);
 
-    int ret;
-    ret = blvd_->BlvdWrite(data, offsets);
-    if (ret < 0) {
-        return Status::IOError();
-    }
-    return Status::OK();
-}
+//     int ret;
+//     ret = blvd_->BlvdWrite(data, offsets);
+//     if (ret < 0) {
+//         return Status::IOError();
+//     }
+//     return Status::OK();
+// }
 
 #ifndef ROCKSDB_LITE
 Status DBImpl::WriteWithCallback(const WriteOptions& write_options,
@@ -277,7 +277,8 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
                          uint64_t* log_used, uint64_t log_ref,
                          bool disable_memtable, uint64_t* seq_used,
                          size_t batch_cnt,
-                         PreReleaseCallback* pre_release_callback) {
+                         PreReleaseCallback* pre_release_callback,
+                         std::vector<size_t>* offsets) {
   assert(!seq_per_batch_ || batch_cnt != 0);
   if (my_batch == nullptr) {
     return Status::Corruption("Batch is nullptr!");
@@ -535,6 +536,9 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
     if (!two_write_queues_) {
+      if (offsets != nullptr) {
+        WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
+      }
       if (status.ok() && !write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
         status = WriteToWAL(write_group, log_writer, log_used, need_log_sync,
@@ -1268,6 +1272,40 @@ Status DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
     RecordTick(stats_, WRITE_WITH_WAL, write_with_wal);
   }
   return status;
+}
+
+Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
+                          std::vector<size_t>* offsets,
+                          bool need_log_sync, bool need_log_dir_sync,
+                          SequenceNumber sequence) {
+  // TODO add sync. Look in WriteToWAL for an example
+  (void)need_log_sync;
+  (void)need_log_dir_sync;
+  Status status;
+
+  size_t write_with_blvd = 0;
+  int ret = 1;
+  // TODO idk what this does
+  //  WriteBatch* to_be_cached_state = nullptr;
+  StopWatch write_sw(env_, stats_, DB_WRITE_BLVD_TIME);
+  for (auto w : write_group) {
+      WriteBatch new_batch;
+      std::string data;
+      size_t loc = blvd_->CurrentOffset();
+      w->batch->PrepareBlvd(&new_batch, offsets, &data, loc);
+
+      ret = blvd_->BlvdWrite(data);
+      *(w->batch) = new_batch;
+      
+      WriteBatchInternal::SetSequence(w->batch, sequence);
+  }
+  
+  if (ret == 0) {
+    auto stats = default_cf_internal_stats_;
+    stats->AddDBStats(InternalStats::kIntStatsWriteWithBlvd, write_with_blvd);
+    RecordTick(stats_, WRITE_WITH_BLVD, write_with_blvd);
+  }
+  return Status::OK();
 }
 
 Status DBImpl::ConcurrentWriteToWAL(const WriteThread::WriteGroup& write_group,

@@ -245,7 +245,7 @@ int testOneDBMultiValue() {
 
     delete db;
     DestroyDB(kDBPath, dbOptions);
-    unlink(logfile.c_str());
+//    unlink(logfile.c_str());
 
     return 1;
 }
@@ -440,12 +440,12 @@ int main() {
     dbOptions.create_if_missing = true;
 
     // correctness tests
-    assert(testOneDBOneValue() == 1);
+//    assert(testOneDBOneValue() == 1);
     assert(testOneDBMultiValue() == 1);
-    assert(testOneDBMultiValue2() == 1);
-    assert(testOneDBMissingKey() == 1);
-    assert(testTwoDBSharedOneValue() == 1);
-    assert(testTwoDBSharedMultiValue() == 1);
+    // assert(testOneDBMultiValue2() == 1);
+    // assert(testOneDBMissingKey() == 1);
+    // assert(testTwoDBSharedOneValue() == 1);
+    // assert(testTwoDBSharedMultiValue() == 1);
     
     return 0;
 }

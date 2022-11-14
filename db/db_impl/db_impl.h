@@ -165,8 +165,10 @@ class DBImpl : public DB {
   virtual Status Write(const WriteOptions& options,
                        WriteBatch* updates, std::vector<size_t>* offsets) override;
 
-  Status WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
-                    std::vector<size_t>* offset);
+  Status WriteToExt(const WriteThread::WriteGroup& write_group,
+                    std::vector<size_t>* offsets,
+                    bool need_log_sync, bool need_log_dir_sync,
+                    SequenceNumber sequence);
 
   using DB::MultiBatchWrite;
   virtual Status MultiBatchWrite(const WriteOptions& options,
@@ -1049,7 +1051,8 @@ class DBImpl : public DB {
                    uint64_t* log_used = nullptr, uint64_t log_ref = 0,
                    bool disable_memtable = false, uint64_t* seq_used = nullptr,
                    size_t batch_cnt = 0,
-                   PreReleaseCallback* pre_release_callback = nullptr);
+                   PreReleaseCallback* pre_release_callback = nullptr,
+                   std::vector<size_t>* offsets = nullptr);
 
   Status MultiBatchWriteImpl(const WriteOptions& write_options,
                              std::vector<WriteBatch*>&& my_batch,

@@ -13,7 +13,7 @@ public:
   Boulevardier(const char* logname);
 
   size_t CurrentOffset();
-  int BlvdWrite(std::string& logdata, std::vector<size_t>* offsets);
+  int BlvdWrite(std::string& logdata);
   int BlvdGet(size_t offset, char** data, size_t* len);
 
 private:
