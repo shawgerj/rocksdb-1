@@ -118,6 +118,8 @@ class InternalStats {
     kIntStatsWriteWithWal,
     kIntStatsWriteStallMicros,
     kIntStatsNumMax,
+    kIntStatsWriteWithBlvd,
+    kIntStatsBlvdFileBytes,
   };
 
   InternalStats(int num_levels, Env* env, ColumnFamilyData* cfd)
@@ -627,6 +629,8 @@ class InternalStats {
     kIntStatsWriteWithWal,
     kIntStatsWriteStallMicros,
     kIntStatsNumMax,
+    kIntStatsWriteWithBlvd,
+    kIntStatsBlvdFileBytes,
   };
 
   InternalStats(int /*num_levels*/, Env* /*env*/, ColumnFamilyData* /*cfd*/) {}
