@@ -4081,6 +4081,10 @@ class Benchmark {
 
   void WriteRandom(ThreadState* thread) {
     DoWrite(thread, RANDOM);
+    if (FLAGS_perf_level > rocksdb::PerfLevel::kDisable) {
+        thread->stats.AddMessage(std::string("PERF_CONTEXT:\n") +
+                                 get_perf_context()->ToString(true));
+    }
   }
 
   void WriteUniqueRandom(ThreadState* thread) {

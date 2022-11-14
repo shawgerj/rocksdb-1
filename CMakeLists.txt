@@ -904,6 +904,16 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
   )
 endif()
 
+CMAKE_DEPENDENT_OPTION(WITH_BENCHMARK_TOOLS "build with tests" ON
+  "CMAKE_BUILD_TYPE STREQUAL Release" ON)
+if(WITH_BENCHMARK_TOOLS)
+  add_executable(db_bench${ARTIFACT_SUFFIX}
+    tools/db_bench.cc)
+  target_link_libraries(db_bench${ARTIFACT_SUFFIX} ${LIBS} ${BLVD_SHARED_LIB})
+
+endif()
+
+
 CMAKE_DEPENDENT_OPTION(WITH_TESTS "build with tests" ON
   "CMAKE_BUILD_TYPE STREQUAL Debug" OFF)
 if(WITH_TESTS)

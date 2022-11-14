@@ -14,13 +14,16 @@ endif
 
 .PHONY: clean librocksdb
 
-all: shared_external
+all: shared_external perf_monitoring
 
 shared_external: librocksdb shared_external.cc
 	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../build/librocksdb.a ../build/libboulevardier.a -I../include -I../boulevardier -O2 -std=c++14 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
+perf_monitoring: librocksdb perf_monitoring.cc
+	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../build/librocksdb.a ../build/libboulevardier.a -I../include -I../boulevardier -O2 -std=c++14 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+
 clean:
-	rm -rf ./shared_external
+	rm -rf ./shared_external ./perf_monitoring
 
 librocksdb:
 	cd ../build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4
