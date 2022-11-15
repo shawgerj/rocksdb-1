@@ -37,6 +37,7 @@ enum {
   flag_seek_internal_seek_time,
   flag_find_next_user_entry_time,
   flag_write_wal_time,
+  flag_write_blvd_time,
   flag_write_memtable_time,
   flag_write_delay_time,
   flag_write_scheduling_flushes_compactions_time,

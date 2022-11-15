@@ -1064,7 +1064,8 @@ class DBImpl : public DB {
                             WriteCallback* callback = nullptr,
                             uint64_t* log_used = nullptr, uint64_t log_ref = 0,
                             bool disable_memtable = false,
-                            uint64_t* seq_used = nullptr);
+                            uint64_t* seq_used = nullptr,
+                            std::vector<size_t>* offsets = nullptr);
 
   // Write only to memtables without joining any write queue
   Status UnorderedWriteMemtable(const WriteOptions& write_options,

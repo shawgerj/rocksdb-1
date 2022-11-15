@@ -365,7 +365,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 
   if (immutable_db_options_.enable_pipelined_write) {
     return PipelinedWriteImpl(write_options, my_batch, callback, log_used,
-                              log_ref, disable_memtable, seq_used);
+                              log_ref, disable_memtable, seq_used, offsets);
   }
 
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
@@ -537,6 +537,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 
     if (!two_write_queues_) {
       if (offsets != nullptr) {
+          PERF_TIMER_GUARD(write_blvd_time);
         WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
       }
       if (status.ok() && !write_options.disableWAL) {
@@ -670,7 +671,8 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
                                   WriteBatch* my_batch, WriteCallback* callback,
                                   uint64_t* log_used, uint64_t log_ref,
-                                  bool disable_memtable, uint64_t* seq_used) {
+                                  bool disable_memtable, uint64_t* seq_used,
+                                  std::vector<size_t>* offsets) {
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
   StopWatch write_sw(env_, immutable_db_options_.statistics.get(), DB_WRITE);
 
@@ -731,6 +733,10 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
 
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
+    if (offsets != nullptr) {
+        PERF_TIMER_GUARD(write_blvd_time);
+        WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+    }
     if (w.status.ok() && !write_options.disableWAL) {
       PERF_TIMER_GUARD(write_wal_time);
       stats->AddDBStats(InternalStats::kIntStatsWriteDoneBySelf, 1);
