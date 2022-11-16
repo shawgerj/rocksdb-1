@@ -4051,7 +4051,7 @@ class Benchmark {
     } else {
       s = DB::Open(options, db_name, &db->db);
       if (use_boulevardier_) {
-          std::string logfile = "/tmp/vlog.txt";
+          std::string logfile = FLAGS_wal_dir + "/vlog.txt";
           auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
           db->db->SetBoulevardier(blvd.get());
       }

@@ -432,6 +432,67 @@ int testTwoDBSharedMultiValue() {
 }
 
 
+struct tArgs {
+  size_t start;
+  size_t num;
+  DB* db;
+};
+
+void writeBody(struct tArgs* args) {
+  for (size_t i = args->start; i < args->start + args->num; i++) {
+    Status s;
+    WriteBatch batch;
+    std::vector<size_t> offsets;
+    std::string key = "key" + std::to_string(i);
+    std::string value = "value" + std::to_string(i);
+
+    batch.Put(key, value);
+    s = args->db->Write(WriteOptions(), &batch, &offsets);
+    assert(s.ok());
+  }
+}
+
+int concurrentWriteTest(int n, size_t work) {
+  std::vector<std::thread> threads;
+
+  DB* db1;
+  Status s;
+  s = DB::Open(dbOptions, kDBPath, &db1);
+    
+  std::string logfile = rootDir + "/vlog1.txt";
+  auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
+  db1->SetBoulevardier(blvd.get());
+  
+
+  struct tArgs* args = new tArgs[n];
+  for (int i = 0; i < n; i++) {
+    args[i].start = i * work;
+    args[i].num = work;
+    args[i].db = db1;
+    threads.push_back(std::thread(writeBody, &args[i]));
+ } 
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  std::string value;
+  for (size_t i = 0; i < n * work; i++) {
+    std::string k = "key" + std::to_string(i);
+    std::string expected_value = "value" + std::to_string(i);
+    s = db1->GetExternal(ReadOptions(), k, &value);
+    assert(s.ok());
+    assert(value == expected_value);
+  }
+
+  delete args;
+  delete db1;
+  DestroyDB(kDBPath, dbOptions);
+  unlink(logfile.c_str());
+  return 1;
+}
+
+
 int main() {
     // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
     dbOptions.IncreaseParallelism();
@@ -446,6 +507,10 @@ int main() {
     // assert(testOneDBMissingKey() == 1);
     // assert(testTwoDBSharedOneValue() == 1);
     // assert(testTwoDBSharedMultiValue() == 1);
+    assert(concurrentWriteTest(1, 100) == 1);
+    assert(concurrentWriteTest(20, 1000) == 1);
+    // this takes awhile but passes
+    //    assert(concurrentWriteTest(8, 1000000) == 1);
     
     return 0;
 }
