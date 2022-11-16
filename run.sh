@@ -1,13 +1,14 @@
 #!/bin/bash
 
-dbsz=5*1024*1024*1024 # 5GB
+dbsz=20*1024*1024*1024 # 20GB
 for b in 0 1
 do
-         for v in {7..8}
+         for v in {0..4}
          do
-             vsz=$((2**v))
-             num=$((dbsz/vsz))
-             ./benches-fillrandom.sh $b $num $vsz 1 1 >& r.b${b}.v${vsz}
+             bsz=$((2**v))
+             num=$((dbsz/1024))
+             ./benches-fillrandom.sh $b $num 1024 1 $bsz >& r.b${b}.batch${bsz}
+	     sleep 2
          done
 done
 

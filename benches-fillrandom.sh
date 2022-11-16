@@ -6,7 +6,8 @@ valuesz=$3
 threads=$4
 batchsz=$5
 
-rm /tmp/vlog.txt; rm -rf /tmp/rocksdb*
+rm /mydata2/wal/vlog.txt; rm -rf /mydata2/bench/*
+sleep 2
 
 # from OptimizeLevelStyleCompaction
 memtable_memory_budget=$((512*1024*1024))
