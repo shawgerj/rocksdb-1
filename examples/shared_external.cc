@@ -15,10 +15,14 @@
 #include "rocksdb/options.h"
 #include "../util/random.h"
 #include "boulevardier.h"
+#include "raftlog.h"
+
+#define DB_SIZE  (20L * 1024 * 1024 * 1024)
+#define RL_SIZE  (128)
 
 using namespace rocksdb;
 
-std::string rootDir = "/tmp";
+std::string rootDir = "/mydata2";
 std::string kDBPath = rootDir + "/rocksdb_tests";
 std::string kDBPath2 = rootDir + "/rocksdb_tests2";
 Options dbOptions;
@@ -492,6 +496,98 @@ int concurrentWriteTest(int n, size_t work) {
   return 1;
 }
 
+int doBenchmark(size_t value_size, bool shared_log, bool wal) {
+  RandomGenerator gen;
+  WriteOptions wopts = WriteOptions();
+  wopts.disableWAL = !wal;
+
+  DB* db1;
+  DB* db2;
+  Status s;
+  s = DB::Open(dbOptions, kDBPath, &db1);
+  s = DB::Open(dbOptions, kDBPath2, &db2);
+
+  std::string log1 = rootDir + "/vlog1.txt";
+  std::string log2;
+  if (shared_log)
+    log2 = log1;
+  else
+    log2 = rootDir + "/vlog2.txt";
+
+  auto blvd1 = std::make_shared<Boulevardier>(log1.c_str());
+  auto blvd2 = std::make_shared<Boulevardier>(log2.c_str());
+  db1->SetBoulevardier(blvd1.get());
+  db2->SetBoulevardier(blvd2.get());
+
+  auto raftlog = std::make_unique<RaftLog>(RL_SIZE);
+  size_t nfill = (size_t)DB_SIZE / value_size;
+  std::unique_ptr<KeyGenerator> keygen;
+  keygen.reset(new KeyGenerator(&myrand, UNIQUE_RANDOM, nfill));
+
+  size_t p1 = nfill / 40;
+  clock_t t0 = clock();
+
+  std::cout << "#\tvsize\tnum_keys\telapsed_time" << std::endl;
+  // start producer thread
+  std::thread producer([&] {
+    std::vector<size_t> offsets;
+    std::unique_ptr<const char[]> key_guard;
+    Slice key = AllocateKey(&key_guard);
+
+    for (size_t i = 0; i < nfill; i++) {
+      int64_t rand_num = keygen->Next();
+      GenerateKeyFromInt(rand_num, &key);
+      Slice val = gen.Generate(value_size);
+      Slice o;
+      WriteBatch batch;
+      batch.Put(key, val);
+      db1->Write(wopts, &batch, &offsets);
+
+      RaftEntry e;
+      e.set_key(key);
+      if (shared_log) {
+	o = Slice(std::to_string(offsets[0]));
+	e.set_value(o);
+      }
+      else {
+	e.set_value(val);
+      }
+
+      raftlog->push(e);
+    }
+  });
+
+  // start consumer thread
+  std::thread consumer([&] {
+    off_t offset;
+    for (size_t i = 0; i < nfill; i++) {
+      auto e = raftlog->pop();
+      Slice key = e->get_key();
+      Slice value = e->get_value();
+
+      WriteBatch batch;
+      batch.Put(key, value);
+      db2->Write(wopts, &batch);
+
+      if (i >= p1) {
+	clock_t dt = clock() - t0;
+	std::cout << value_size << "\t" << i+1 << "\t" << dt * 1.0e-6 << std::endl;
+	p1 += (nfill / 40);
+      }
+
+    }
+  });
+
+  producer.join();
+  consumer.join();
+
+  DestroyDB(kDBPath, dbOptions);
+  DestroyDB(kDBPath2, dbOptions);
+  unlink(log1.c_str());
+  unlink(log2.c_str());
+
+  return 1;
+}
 
 int main() {
     // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
@@ -502,15 +598,18 @@ int main() {
 
     // correctness tests
 //    assert(testOneDBOneValue() == 1);
-    assert(testOneDBMultiValue() == 1);
+//    assert(testOneDBMultiValue() == 1);
     // assert(testOneDBMultiValue2() == 1);
     // assert(testOneDBMissingKey() == 1);
     // assert(testTwoDBSharedOneValue() == 1);
     // assert(testTwoDBSharedMultiValue() == 1);
-    assert(concurrentWriteTest(1, 100) == 1);
-    assert(concurrentWriteTest(20, 1000) == 1);
+    //    assert(concurrentWriteTest(1, 100) == 1);
+    //    assert(concurrentWriteTest(20, 1000) == 1);
     // this takes awhile but passes
     //    assert(concurrentWriteTest(8, 1000000) == 1);
+
+
+    doBenchmark(4096, 0, 1);
     
     return 0;
 }
