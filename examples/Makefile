@@ -17,7 +17,7 @@ endif
 all: shared_external 
 
 shared_external: librocksdb shared_external.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../build/librocksdb.a ../build/libboulevardier.a -I../include -I../boulevardier -O2 -std=c++14 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXXFLAGS) -g $@.cc -o$@ ../build/librocksdb.a ../build/libboulevardier.a -I../include -I../boulevardier -O2 -std=c++14 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 clean:
 	rm -rf ./shared_external 

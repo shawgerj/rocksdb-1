@@ -4055,7 +4055,7 @@ class Benchmark {
           auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
           db->db->SetBoulevardier(blvd.get());
       }
-    }
+}
     if (!s.ok()) {
       fprintf(stderr, "open error: %s\n", s.ToString().c_str());
       exit(1);
