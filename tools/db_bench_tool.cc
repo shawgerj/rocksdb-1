@@ -30,7 +30,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include "boulevardier/boulevardier.h"
+#include "wotr.h"
 #include "db/db_impl/db_impl.h"
 #include "db/malloc_stats.h"
 #include "db/version_set.h"
@@ -726,10 +726,10 @@ DEFINE_bool(fifo_compaction_allow_compaction, true,
 
 DEFINE_uint64(fifo_compaction_ttl, 0, "TTL for the SST Files in seconds.");
 
-// Boulevardier options
-DEFINE_bool(use_boulevardier, false,
-            "Use Boulevardier. "
-            "Boulevardier stores values in a log file.");
+// Wotr options
+DEFINE_bool(use_wotr, false,
+            "Use Wotr. "
+            "Wotr stores values in a log file.");
 
 // Blob DB Options
 DEFINE_bool(use_blob_db, false,
@@ -2172,7 +2172,7 @@ class Benchmark {
   int64_t readwrites_;
   int64_t merge_keys_;
   bool report_file_operations_;
-  bool use_boulevardier_;
+  bool use_wotr_;
   bool use_blob_db_;
   std::vector<std::string> keys_;
   bool use_multi_write_;
@@ -2506,7 +2506,7 @@ class Benchmark {
                 : ((FLAGS_writes > FLAGS_reads) ? FLAGS_writes : FLAGS_reads)),
         merge_keys_(FLAGS_merge_keys < 0 ? FLAGS_num : FLAGS_merge_keys),
         report_file_operations_(FLAGS_report_file_operations),
-        use_boulevardier_(FLAGS_use_boulevardier),
+        use_wotr_(FLAGS_use_wotr),
 #ifndef ROCKSDB_LITE
         use_blob_db_(FLAGS_use_blob_db),
 #else
@@ -4050,10 +4050,10 @@ class Benchmark {
 #endif  // ROCKSDB_LITE
     } else {
       s = DB::Open(options, db_name, &db->db);
-      if (use_boulevardier_) {
+      if (use_wotr_) {
           std::string logfile = "/nobackup/vlog.txt";
-          auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-          db->db->SetBoulevardier(blvd.get());
+          auto wotr = std::make_shared<Wotr>(logfile.c_str());
+          db->db->SetWotr(wotr.get());
       }
 }
     if (!s.ok()) {
@@ -4307,7 +4307,7 @@ class Benchmark {
         s = db_with_cfh->db->MultiBatchWrite(write_options_,
                                              batches.GetWriteBatch());
       } else if (!use_blob_db_) {
-          if (use_boulevardier_) {
+          if (use_wotr_) {
               std::vector<size_t> offsets;
               s = db_with_cfh->db->Write(write_options_, &batch, &offsets);
           } else {

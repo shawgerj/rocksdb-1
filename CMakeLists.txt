@@ -142,6 +142,9 @@ else()
   endif()
 endif()
 
+get_filename_component(PARENT_DIR ${PROJECT_SOURCE_DIR} DIRECTORY)
+set(WOTR_DIR "${PARENT_DIR}/wotr")
+
 string(TIMESTAMP GIT_DATE_TIME "%Y/%m/%d %H:%M:%S" UTC)
 
 find_package(Git)
@@ -488,6 +491,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/gtest-1.7.0/fused-src)
+include_directories(${WOTR_DIR})
 find_package(Threads REQUIRED)
 
 # Main library source code
@@ -779,14 +783,9 @@ if(WITH_LIBRADOS)
   list(APPEND THIRDPARTY_LIBS rados)
 endif()
 
-# boulevardier library
-set(BLVD_LIB "boulevardier")
-set(BLVD_SHARED_LIB "boulevardier-shared")
-set(BLVD_SOURCE_FILE "boulevardier/boulevardier.cc")
-set(BLVD_HEADER_FILE "boulevardier/boulevardier.h")
-
-add_library("${BLVD_LIB}" STATIC "${BLVD_SOURCE_FILE}")
-add_library("${BLVD_SHARED_LIB}" SHARED "${BLVD_SOURCE_FILE}")
+link_directories(${WOTR_DIR})
+set(WOTR_LIB "wotr")
+set(WOTR_SHARED_LIB "wotr_shared")
 
 if(WIN32)
   set(SYSTEM_LIBS ${SYSTEM_LIBS} Shlwapi.lib Rpcrt4.lib)
@@ -798,7 +797,7 @@ else()
   add_library(${ROCKSDB_SHARED_LIB} SHARED ${SOURCES})
   target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE
     ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-  target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE ${BLVD_SHARED_LIB})
+  target_link_libraries(${ROCKSDB_SHARED_LIB} PRIVATE ${WOTR_SHARED_LIB})
   set_target_properties(${ROCKSDB_SHARED_LIB} PROPERTIES
                         LINKER_LANGUAGE CXX
                         VERSION ${ROCKSDB_VERSION}
@@ -812,7 +811,7 @@ include(CMakeDependentOption)
 add_library(${ROCKSDB_STATIC_LIB} STATIC ${SOURCES})
 target_link_libraries(${ROCKSDB_STATIC_LIB} PRIVATE
   ${THIRDPARTY_LIBS} ${SYSTEM_LIBS})
-target_link_libraries(${ROCKSDB_STATIC_LIB} PRIVATE ${BLVD_LIB}) 
+target_link_libraries(${ROCKSDB_STATIC_LIB} PRIVATE ${WOTR_LIB}) 
 
 if(WIN32)
   add_library(${ROCKSDB_IMPORT_LIB} SHARED ${SOURCES})
@@ -866,10 +865,6 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
 
   install(DIRECTORY include/rocksdb COMPONENT devel DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
-  install(TARGETS ${BLVD_LIB} EXPORT RocksDBTargets)
-  install(TARGETS ${BLVD_SHARED_LIB} EXPORT RocksDBTargets)  
-        
-
   install(
     TARGETS ${ROCKSDB_STATIC_LIB}
     EXPORT RocksDBTargets
@@ -909,7 +904,7 @@ CMAKE_DEPENDENT_OPTION(WITH_BENCHMARK_TOOLS "build with tests" ON
 if(WITH_BENCHMARK_TOOLS)
   add_executable(db_bench${ARTIFACT_SUFFIX}
     tools/db_bench.cc)
-  target_link_libraries(db_bench${ARTIFACT_SUFFIX} ${LIBS} ${BLVD_SHARED_LIB})
+  target_link_libraries(db_bench${ARTIFACT_SUFFIX} ${LIBS} ${WOTR_LIB})
 
 endif()
 

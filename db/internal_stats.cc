@@ -987,8 +987,8 @@ void InternalStats::DumpDBStats(std::string* value) {
   uint64_t wal_bytes = GetDBStats(InternalStats::kIntStatsWalFileBytes);
   uint64_t wal_synced = GetDBStats(InternalStats::kIntStatsWalFileSynced);
   uint64_t write_with_wal = GetDBStats(InternalStats::kIntStatsWriteWithWal);
-  uint64_t write_with_blvd = GetDBStats(InternalStats::kIntStatsWriteWithBlvd);
-  uint64_t blvd_bytes = GetDBStats(InternalStats::kIntStatsBlvdFileBytes);
+  uint64_t write_with_wotr = GetDBStats(InternalStats::kIntStatsWriteWithWotr);
+  uint64_t wotr_bytes = GetDBStats(InternalStats::kIntStatsWotrFileBytes);
   uint64_t write_stall_micros =
       GetDBStats(InternalStats::kIntStatsWriteStallMicros);
 

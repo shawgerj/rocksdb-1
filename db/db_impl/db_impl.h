@@ -61,7 +61,7 @@
 #include "util/stop_watch.h"
 #include "util/thread_local.h"
 
-#include "boulevardier/boulevardier.h"
+#include "wotr.h"
 
 namespace rocksdb {
 
@@ -133,8 +133,8 @@ class DBImpl : public DB {
 
   // ---- Implementations of the DB interface ----
 
-  using DB::SetBoulevardier;
-  virtual Status SetBoulevardier(Boulevardier* blvd) override;
+  using DB::SetWotr;
+  virtual Status SetWotr(Wotr* wotr) override;
 
   using DB::Resume;
   virtual Status Resume() override;
@@ -935,7 +935,7 @@ class DBImpl : public DB {
  protected:
   Env* const env_;
   const std::string dbname_;
-  Boulevardier* blvd_;
+  Wotr* wotr_;
   std::unique_ptr<VersionSet> versions_;
   // Flag to check whether we allocated and own the info log file
   bool own_info_log_;

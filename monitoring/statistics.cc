@@ -101,7 +101,7 @@ const std::vector<std::pair<Tickers, std::string>> TickersNameMap = {
     {WRITE_DONE_BY_OTHER, "rocksdb.write.other"},
     {WRITE_TIMEDOUT, "rocksdb.write.timeout"},
     {WRITE_WITH_WAL, "rocksdb.write.wal"},
-    {WRITE_WITH_BLVD, "rocksdb.write.blvd"},
+    {WRITE_WITH_WOTR, "rocksdb.write.wotr"},
     {COMPACT_READ_BYTES, "rocksdb.compact.read.bytes"},
     {COMPACT_WRITE_BYTES, "rocksdb.compact.write.bytes"},
     {FLUSH_WRITE_BYTES, "rocksdb.flush.write.bytes"},
@@ -227,7 +227,7 @@ const std::vector<std::pair<Histograms, std::string>> HistogramsNameMap = {
     {FLUSH_TIME, "rocksdb.db.flush.micros"},
     {SST_BATCH_SIZE, "rocksdb.sst.batch.size"},
     {DB_WRITE_WAL_TIME, "rocksdb.db.write.wal.time"},
-    {DB_WRITE_BLVD_TIME, "rockdsb.db.write.blvd.time"},
+    {DB_WRITE_WOTR_TIME, "rockdsb.db.write.wotr.time"},
 };
 
 } // namespace rocksdb

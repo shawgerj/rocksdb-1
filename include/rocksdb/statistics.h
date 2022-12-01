@@ -204,7 +204,7 @@ enum Tickers : uint32_t {
   COMPACT_READ_BYTES,   // Bytes read during compaction
   COMPACT_WRITE_BYTES,  // Bytes written during compaction
   FLUSH_WRITE_BYTES,    // Bytes written during flush
-  WRITE_WITH_BLVD,
+  WRITE_WITH_WOTR,
 
   // Number of table's properties loaded directly from file, without creating
   // table reader object.
@@ -429,7 +429,7 @@ enum Histograms : uint32_t {
   FLUSH_TIME,
   SST_BATCH_SIZE,
   DB_WRITE_WAL_TIME,
-  DB_WRITE_BLVD_TIME,
+  DB_WRITE_WOTR_TIME,
 
   HISTOGRAM_ENUM_MAX,
 };

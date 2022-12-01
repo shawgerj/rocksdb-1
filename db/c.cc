@@ -2854,8 +2854,8 @@ uint64_t rocksdb_perfcontext_metric(rocksdb_perfcontext_t* context,
       return rep->find_next_user_entry_time;
     case rocksdb_write_wal_time:
       return rep->write_wal_time;
-    case rocksdb_write_blvd_time:
-      return rep->write_blvd_time;
+    case rocksdb_write_wotr_time:
+      return rep->write_wotr_time;
     case rocksdb_write_memtable_time:
       return rep->write_memtable_time;
     case rocksdb_write_delay_time:

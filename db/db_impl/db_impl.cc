@@ -150,7 +150,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
                const bool seq_per_batch, const bool batch_per_txn)
     : env_(options.env),
       dbname_(dbname),
-      blvd_(nullptr),
+      wotr_(nullptr),
       own_info_log_(options.info_log == nullptr),
       initial_db_options_(SanitizeOptions(dbname, options)),
       immutable_db_options_(initial_db_options_),
@@ -263,8 +263,8 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   preserve_deletes_seqnum_.store(0);
 }
 
-Status DBImpl::SetBoulevardier(Boulevardier* blvd) {
-    blvd_ = blvd;
+Status DBImpl::SetWotr(Wotr* wotr) {
+    wotr_ = wotr;
     return Status::OK();
 }
 
@@ -1497,7 +1497,7 @@ void DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
     char* data;
     size_t len;
     size_t offset = std::stol(loc.data());
-    blvd_->BlvdGet(offset, &data, &len);
+    wotr_->WotrGet(offset, &data, &len);
     value->assign(data, len);
 }
 
