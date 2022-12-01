@@ -34,7 +34,7 @@
 //    data: uint8[len]
 
 #include "rocksdb/write_batch.h"
-#include "boulevardier/boulevardier.h"
+#include "wotr.h"
 
 #include <map>
 #include <stack>
@@ -138,15 +138,15 @@ struct BatchContentClassifier : public WriteBatch::Handler {
 };
 
 // shawgerj added
-class BoulevardierBuilder : public WriteBatch::Handler {
+class WotrBuilder : public WriteBatch::Handler {
  public:
-    explicit BoulevardierBuilder(WriteBatch* new_batch, std::vector<size_t>* o,
-                                 std::string* data, size_t loc)
+    explicit WotrBuilder(WriteBatch* new_batch, std::vector<size_t>* o,
+                         std::string* data, size_t loc)
         : batch_(new_batch),
           offsets_(o),
           logstring_(data),
           loc_(loc) {}
-  ~BoulevardierBuilder() override {}
+  ~WotrBuilder() override {}
 
   Status PutCF(uint32_t, const Slice& key, const Slice& value) override {
     batch_->Put(key, std::to_string(logstring_->size() + loc_));
@@ -1249,9 +1249,9 @@ Status WriteBatch::PopSavePoint() {
   return Status::OK();
 }
  
-Status WriteBatch::PrepareBlvd(WriteBatch* new_batch, std::vector<size_t>* offsets, std::string* data, size_t loc) {
-    BoulevardierBuilder blvd_bld(new_batch, offsets, data, loc);
-    return Iterate(&blvd_bld);
+Status WriteBatch::PrepareWotr(WriteBatch* new_batch, std::vector<size_t>* offsets, std::string* data, size_t loc) {
+    WotrBuilder wotr_bld(new_batch, offsets, data, loc);
+    return Iterate(&wotr_bld);
 }
 
 Status WriteBatch::AssignTimestamp(const Slice& ts) {

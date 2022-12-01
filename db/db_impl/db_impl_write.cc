@@ -80,14 +80,14 @@ Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
 
 //     std::string data;
 //     // ask for offset of logfile to write to 
-//     size_t loc = blvd_->CurrentOffset();
+//     size_t loc = wotr_->CurrentOffset();
 
 //     // build new WriteBatch - values replaced with locs
 //     // build offsets vector
-//     my_batch->PrepareBlvd(new_batch, offsets, &data, loc);
+//     my_batch->PrepareWotr(new_batch, offsets, &data, loc);
 
 //     int ret;
-//     ret = blvd_->BlvdWrite(data, offsets);
+//     ret = wotr_->WotrWrite(data, offsets);
 //     if (ret < 0) {
 //         return Status::IOError();
 //     }
@@ -537,7 +537,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 
     if (!two_write_queues_) {
       if (offsets != nullptr) {
-          PERF_TIMER_GUARD(write_blvd_time);
+          PERF_TIMER_GUARD(write_wotr_time);
         WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
       }
       if (status.ok() && !write_options.disableWAL) {
@@ -734,7 +734,7 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
     if (offsets != nullptr) {
-        PERF_TIMER_GUARD(write_blvd_time);
+        PERF_TIMER_GUARD(write_wotr_time);
         WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
     }
     if (w.status.ok() && !write_options.disableWAL) {
@@ -1289,18 +1289,18 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   (void)need_log_dir_sync;
   Status status;
 
-  size_t write_with_blvd = 0;
+  size_t write_with_wotr = 0;
   int ret = 1;
   // TODO idk what this does
   //  WriteBatch* to_be_cached_state = nullptr;
-  StopWatch write_sw(env_, stats_, DB_WRITE_BLVD_TIME);
+  StopWatch write_sw(env_, stats_, DB_WRITE_WOTR_TIME);
   for (auto w : write_group) {
       WriteBatch new_batch;
       std::string data;
-      size_t loc = blvd_->CurrentOffset();
-      w->batch->PrepareBlvd(&new_batch, offsets, &data, loc);
+      size_t loc = wotr_->CurrentOffset();
+      w->batch->PrepareWotr(&new_batch, offsets, &data, loc);
 
-      ret = blvd_->BlvdWrite(data);
+      ret = wotr_->WotrWrite(data);
       *(w->batch) = new_batch;
       
       WriteBatchInternal::SetSequence(w->batch, sequence);
@@ -1308,8 +1308,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   
   if (ret == 0) {
     auto stats = default_cf_internal_stats_;
-    stats->AddDBStats(InternalStats::kIntStatsWriteWithBlvd, write_with_blvd);
-    RecordTick(stats_, WRITE_WITH_BLVD, write_with_blvd);
+    stats->AddDBStats(InternalStats::kIntStatsWriteWithWotr, write_with_wotr);
+    RecordTick(stats_, WRITE_WITH_WOTR, write_with_wotr);
   }
   return Status::OK();
 }
@@ -2029,7 +2029,7 @@ Status DB::Put(const WriteOptions& opt, ColumnFamilyHandle* column_family,
 // shawgerj FIXME
 Status DB::PutExternal(const WriteOptions& opt, ColumnFamilyHandle* column_family,
                        const Slice& key, const Slice& value, size_t* offset) {
-    // have boulevardier write data first
+    // have wotr write data first
 //    WriteToExt(key, value, offset);
     // then just Put() with the offset instead of original value
     return Put(opt, column_family, key, Slice(std::to_string(*offset)));

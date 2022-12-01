@@ -1124,7 +1124,7 @@ enum {
   rocksdb_env_unlock_file_nanos,
   rocksdb_env_new_logger_nanos,
   rocksdb_total_metric_count,
-  rocksdb_write_blvd_time = 69
+  rocksdb_write_wotr_time = 69
 };
 
 extern ROCKSDB_LIBRARY_API void rocksdb_set_perf_level(int);

@@ -25,7 +25,7 @@
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/types.h"
 #include "rocksdb/version.h"
-#include "../boulevardier/boulevardier.h"
+#include "wotr.h"
 
 #ifdef _WIN32
 // Windows API macro interference
@@ -227,7 +227,7 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
-  virtual Status SetBoulevardier(Boulevardier* blvd) { return Status::NotSupported(); }
+  virtual Status SetWotr(Wotr* wotr) { return Status::NotSupported(); }
 
   virtual Status Resume() { return Status::NotSupported(); }
 
