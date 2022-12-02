@@ -68,6 +68,7 @@ extern "C" {
 
 /* Exported types */
 
+typedef struct wotr_t                    wotr_t;
 typedef struct rocksdb_t                 rocksdb_t;
 typedef struct rocksdb_backup_engine_t   rocksdb_backup_engine_t;
 typedef struct rocksdb_backup_engine_info_t   rocksdb_backup_engine_info_t;
@@ -141,6 +142,9 @@ extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_open_for_read_only(
 extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_open_as_secondary(
     const rocksdb_options_t* options, const char* name,
     const char* secondary_path, char** errptr);
+
+extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_set_wotr(
+    rocksdb_t* db, wotr_t* w);
 
 extern ROCKSDB_LIBRARY_API void rocksdb_resume(rocksdb_t* db, char** errptr);
 
@@ -287,9 +291,17 @@ extern ROCKSDB_LIBRARY_API void rocksdb_write(
     rocksdb_t* db, const rocksdb_writeoptions_t* options,
     rocksdb_writebatch_t* batch, char** errptr);
 
+extern ROCKSDB_LIBRARY_API size_t* rocksdb_write_wotr(
+    rocksdb_t* db, const rocksdb_writeoptions_t* options,
+    rocksdb_writebatch_t* batch, size_t* lenoffsets, char** errptr);
+
 /* Returns NULL if not found.  A malloc()ed array otherwise.
    Stores the length of the array in *vallen. */
 extern ROCKSDB_LIBRARY_API char* rocksdb_get(
+    rocksdb_t* db, const rocksdb_readoptions_t* options, const char* key,
+    size_t keylen, size_t* vallen, char** errptr);
+
+extern ROCKSDB_LIBRARY_API char* rocksdb_get_external(
     rocksdb_t* db, const rocksdb_readoptions_t* options, const char* key,
     size_t keylen, size_t* vallen, char** errptr);
 
