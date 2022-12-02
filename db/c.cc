@@ -43,6 +43,7 @@
 #include "rocksdb/write_batch.h"
 #include "utilities/merge_operators.h"
 #include "utilities/rate_limiters/write_amp_based_rate_limiter.h"
+#include "wotr.h"
 
 #include <vector>
 #include <unordered_set>
@@ -127,6 +128,7 @@ using std::map;
 
 extern "C" {
 
+struct wotr_t                    { Wotr*             rep; }; 
 struct rocksdb_t                 { DB*               rep; };
 struct rocksdb_backup_engine_t   { BackupEngine*     rep; };
 struct rocksdb_backup_engine_info_t { std::vector<BackupInfo> rep; };
@@ -537,6 +539,10 @@ rocksdb_t* rocksdb_open_as_secondary(const rocksdb_options_t* options,
   return result;
 }
 
+void rocksdb_set_wotr(rocksdb_t* db, wotr_t* w) {
+  db->rep->SetWotr(w->rep);
+}
+
 void rocksdb_resume(rocksdb_t* db, char** errptr) {
   SaveError(errptr, db->rep->Resume());
 }
@@ -902,6 +908,25 @@ void rocksdb_write(
   SaveError(errptr, db->rep->Write(options->rep, &batch->rep));
 }
 
+size_t* rocksdb_write_wotr(rocksdb_t* db, const rocksdb_writeoptions_t* options,
+                           rocksdb_writebatch_t* batch, size_t *lenoffsets,
+                           char** errptr) {
+  std::vector<size_t> offsets;
+  Status s = db->rep->Write(options->rep, &batch->rep, &offsets);
+
+  if (s.ok()) {
+    *lenoffsets = offsets.size();
+    size_t* offsetarray = static_cast<size_t*>(malloc(sizeof(size_t) * offsets.size()));
+    for (size_t i = 0; i < offsets.size(); i++) {
+      offsetarray[i] = offsets[i];
+    }
+    return offsetarray;
+  } else {
+    SaveError(errptr, s);
+  }
+  return nullptr;
+}
+
 char* rocksdb_get(
     rocksdb_t* db,
     const rocksdb_readoptions_t* options,
@@ -911,6 +936,27 @@ char* rocksdb_get(
   char* result = nullptr;
   std::string tmp;
   Status s = db->rep->Get(options->rep, Slice(key, keylen), &tmp);
+  if (s.ok()) {
+    *vallen = tmp.size();
+    result = CopyString(tmp);
+  } else {
+    *vallen = 0;
+    if (!s.IsNotFound()) {
+      SaveError(errptr, s);
+    }
+  }
+  return result;
+}
+
+char* rocksdb_get_external(
+    rocksdb_t* db,
+    const rocksdb_readoptions_t* options,
+    const char* key, size_t keylen,
+    size_t* vallen,
+    char** errptr) {
+  char* result = nullptr;
+  std::string tmp;
+  Status s = db->rep->GetExternal(options->rep, Slice(key, keylen), &tmp);
   if (s.ok()) {
     *vallen = tmp.size();
     result = CopyString(tmp);
