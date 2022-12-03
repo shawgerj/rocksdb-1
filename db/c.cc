@@ -927,6 +927,10 @@ size_t* rocksdb_write_wotr(rocksdb_t* db, const rocksdb_writeoptions_t* options,
   return nullptr;
 }
 
+void rocksdb_write_wotr_destroy(size_t* list) {
+  free(list);
+}
+
 char* rocksdb_get(
     rocksdb_t* db,
     const rocksdb_readoptions_t* options,
@@ -948,25 +952,22 @@ char* rocksdb_get(
   return result;
 }
 
-char* rocksdb_get_external(
+rocksdb_pinnableslice_t* rocksdb_get_external(
     rocksdb_t* db,
     const rocksdb_readoptions_t* options,
     const char* key, size_t keylen,
-    size_t* vallen,
     char** errptr) {
-  char* result = nullptr;
-  std::string tmp;
-  Status s = db->rep->GetExternal(options->rep, Slice(key, keylen), &tmp);
-  if (s.ok()) {
-    *vallen = tmp.size();
-    result = CopyString(tmp);
-  } else {
-    *vallen = 0;
+  rocksdb_pinnableslice_t* v = new (rocksdb_pinnableslice_t);
+  Status s = db->rep->GetExternal(options->rep, Slice(key, keylen), &v->rep);
+  
+  if (!s.ok()) {
+    delete(v);
     if (!s.IsNotFound()) {
       SaveError(errptr, s);
     }
+    return nullptr;
   }
-  return result;
+  return v;
 }
 
 char* rocksdb_get_cf(

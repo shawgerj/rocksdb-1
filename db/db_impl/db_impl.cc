@@ -1493,17 +1493,18 @@ Status DBImpl::Get(const ReadOptions& read_options,
   return GetImpl(read_options, column_family, key, value);
 }
 
-void DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
+void DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
     size_t len;
     size_t offset = std::stol(loc.data());
     wotr_->WotrGet(offset, &data, &len);
-    value->assign(data, len);
+    value->GetSelf()->assign(data, len);
+    value->PinSelf();
 }
 
 Status DBImpl::GetExternal(const ReadOptions& options,
                    ColumnFamilyHandle* column_family, const Slice& key,
-                   std::string* value) {
+                   PinnableSlice* value) {
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);

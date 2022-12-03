@@ -2483,7 +2483,7 @@ class ModelDB : public DB {
   using DB::GetExternal;
   Status GetExternal(const ReadOptions& options,
                      ColumnFamilyHandle* column_family, const Slice& key,
-                     std::string* value) override {
+                     PinnableSlice* value) override {
       return Status::NotSupported("Not supported in ModelDB.");
   }
   using DB::MultiGet;

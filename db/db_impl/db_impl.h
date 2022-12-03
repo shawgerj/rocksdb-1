@@ -182,7 +182,7 @@ class DBImpl : public DB {
   using DB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
                              ColumnFamilyHandle* column_family, const Slice& key,
-                             std::string* value) override;
+                             PinnableSlice* value) override;
 
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(
@@ -423,7 +423,7 @@ class DBImpl : public DB {
   // Function that Get and KeyMayExist call with no_io true or false
   // Note: 'value_found' from KeyMayExist propagates here
 
-  void GetExternalImpl(PinnableSlice& loc, std::string* value);
+  void GetExternalImpl(PinnableSlice& loc, PinnableSlice* value);
     
   Status GetImpl(const ReadOptions& options, ColumnFamilyHandle* column_family,
                  const Slice& key, PinnableSlice* value,

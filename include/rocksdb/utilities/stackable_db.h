@@ -98,7 +98,7 @@ class StackableDB : public DB {
   using DB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
                              ColumnFamilyHandle* column_family, const Slice& key,
-                             std::string* value) override {
+                             PinnableSlice* value) override {
     return db_->GetExternal(options, column_family, key, value);
   }    
 

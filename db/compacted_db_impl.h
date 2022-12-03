@@ -29,7 +29,7 @@ class CompactedDBImpl : public DBImpl {
   using DB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
                              ColumnFamilyHandle* column_family, const Slice& key,
-                             std::string* value) override {
+                             PinnableSlice* value) override {
       return Status::NotSupported("Not supported in compacted db mode.");
   }
     

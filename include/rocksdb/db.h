@@ -429,13 +429,12 @@ class DB {
     return Get(options, DefaultColumnFamily(), key, value);
   }
 
-  // TODO: figure out how to do this with PinnableSlice like Get()    
   virtual inline Status GetExternal(const ReadOptions& options,
                                     ColumnFamilyHandle* column_family, const Slice& key,
-                                    std::string* value) = 0;
+                                    PinnableSlice* value) = 0;
 
   virtual Status GetExternal(const ReadOptions& options, const Slice& key,
-                             std::string* value) {
+                             PinnableSlice* value) {
     return GetExternal(options, DefaultColumnFamily(), key, value);
   }
 
