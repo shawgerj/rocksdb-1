@@ -143,7 +143,7 @@ extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_open_as_secondary(
     const rocksdb_options_t* options, const char* name,
     const char* secondary_path, char** errptr);
 
-extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_set_wotr(
+extern ROCKSDB_LIBRARY_API void rocksdb_set_wotr(
     rocksdb_t* db, wotr_t* w);
 
 extern ROCKSDB_LIBRARY_API void rocksdb_resume(rocksdb_t* db, char** errptr);
@@ -295,15 +295,18 @@ extern ROCKSDB_LIBRARY_API size_t* rocksdb_write_wotr(
     rocksdb_t* db, const rocksdb_writeoptions_t* options,
     rocksdb_writebatch_t* batch, size_t* lenoffsets, char** errptr);
 
+extern ROCKSDB_LIBRARY_API void rocksdb_write_wotr_destroy(size_t* list);
+
 /* Returns NULL if not found.  A malloc()ed array otherwise.
    Stores the length of the array in *vallen. */
 extern ROCKSDB_LIBRARY_API char* rocksdb_get(
     rocksdb_t* db, const rocksdb_readoptions_t* options, const char* key,
     size_t keylen, size_t* vallen, char** errptr);
 
-extern ROCKSDB_LIBRARY_API char* rocksdb_get_external(
+// doing a pinnableslice like get_pinned. Makes life in TiKV easier
+extern ROCKSDB_LIBRARY_API rocksdb_pinnableslice_t* rocksdb_get_external(
     rocksdb_t* db, const rocksdb_readoptions_t* options, const char* key,
-    size_t keylen, size_t* vallen, char** errptr);
+    size_t keylen, char** errptr);
 
 extern ROCKSDB_LIBRARY_API char* rocksdb_get_cf(
     rocksdb_t* db, const rocksdb_readoptions_t* options,

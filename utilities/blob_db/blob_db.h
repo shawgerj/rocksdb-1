@@ -154,7 +154,7 @@ class BlobDB : public StackableDB {
   using rocksdb::StackableDB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
                              ColumnFamilyHandle* column_family, const Slice& key,
-                             std::string* value) override {
+                             PinnableSlice* value) override {
       return Status::NotSupported("Not supported operation in blob db.");
   }                               
 
