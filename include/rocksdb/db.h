@@ -429,8 +429,9 @@ class DB {
     return Get(options, DefaultColumnFamily(), key, value);
   }
 
-  virtual inline Status GetExternal(const ReadOptions& options,
-                                    ColumnFamilyHandle* column_family, const Slice& key,
+  virtual Status GetExternal(const ReadOptions& options,
+                                    ColumnFamilyHandle* column_family,
+				    const Slice& key,
                                     PinnableSlice* value) = 0;
 
   virtual Status GetExternal(const ReadOptions& options, const Slice& key,

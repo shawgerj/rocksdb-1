@@ -181,7 +181,8 @@ class DBImpl : public DB {
 
   using DB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
-                             ColumnFamilyHandle* column_family, const Slice& key,
+                             ColumnFamilyHandle* column_family,
+			     const Slice& key,
                              PinnableSlice* value) override;
 
   using DB::MultiGet;
