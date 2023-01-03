@@ -87,7 +87,7 @@ struct ImmutableDBOptions {
 
 struct MutableDBOptions {
   MutableDBOptions();
-  explicit MutableDBOptions(const MutableDBOptions& options) = default;
+//  explicit MutableDBOptions(const MutableDBOptions& options) = default;
   explicit MutableDBOptions(const DBOptions& options);
 
   void Dump(Logger* log) const;
