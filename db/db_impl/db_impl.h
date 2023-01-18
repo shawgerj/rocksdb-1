@@ -172,7 +172,8 @@ class DBImpl : public DB {
 
   using DB::MultiBatchWrite;
   virtual Status MultiBatchWrite(const WriteOptions& options,
-                                 std::vector<WriteBatch*>&& updates) override;
+                                 std::vector<WriteBatch*>&& updates,
+                                 std::vector<size_t>* offsets) override;
 
   using DB::Get;
   virtual Status Get(const ReadOptions& options,
@@ -1059,7 +1060,8 @@ class DBImpl : public DB {
                              std::vector<WriteBatch*>&& my_batch,
                              WriteCallback* callback,
                              uint64_t* log_used = nullptr, uint64_t log_ref = 0,
-                             uint64_t* seq_used = nullptr);
+                             uint64_t* seq_used = nullptr,
+                             std::vector<size_t>* = nullptr);
 
   Status PipelinedWriteImpl(const WriteOptions& options, WriteBatch* updates,
                             WriteCallback* callback = nullptr,
