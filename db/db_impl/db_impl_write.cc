@@ -63,11 +63,6 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 // modified write
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
-    // if (offsets != nullptr) {
-    //     WriteBatch new_batch;
-    //     WriteToExt(my_batch, &new_batch, offsets);
-    //     return WriteImpl(write_options, &new_batch, nullptr, nullptr);
-    // }
     return WriteImpl(write_options, my_batch, nullptr, nullptr, 0, false, nullptr, 0, nullptr, offsets);
 }
     
@@ -103,9 +98,11 @@ Status DBImpl::WriteWithCallback(const WriteOptions& write_options,
 #endif  // ROCKSDB_LITE
 
 Status DBImpl::MultiBatchWrite(const WriteOptions& options,
-                               std::vector<WriteBatch*>&& updates) {
+                               std::vector<WriteBatch*>&& updates,
+                               std::vector<size_t>* offsets) {
   if (immutable_db_options_.enable_multi_thread_write) {
-    return MultiBatchWriteImpl(options, std::move(updates), nullptr, nullptr);
+    return MultiBatchWriteImpl(options, std::move(updates), nullptr, nullptr,
+                               0, nullptr, offsets);
   } else {
     return Status::NotSupported();
   }
@@ -114,7 +111,8 @@ Status DBImpl::MultiBatchWrite(const WriteOptions& options,
 Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
                                    std::vector<WriteBatch*>&& my_batch,
                                    WriteCallback* callback, uint64_t* log_used,
-                                   uint64_t log_ref, uint64_t* seq_used) {
+                                   uint64_t log_ref, uint64_t* seq_used,
+                                   std::vector<size_t>* offsets) {
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
   StopWatch write_sw(env_, immutable_db_options_.statistics.get(), DB_WRITE);
   WriteThread::Writer writer(write_options, std::move(my_batch), callback,
@@ -173,6 +171,9 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
       RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
 
       PERF_TIMER_STOP(write_pre_and_post_process_time);
+      if (offsets != nullptr) {
+        WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+      }
       if (!write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
         stats->AddDBStats(InternalStats::kIntStatsWriteDoneBySelf, 1);
@@ -1298,19 +1299,33 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       WriteBatch new_batch;
       std::string data;
       size_t loc = wotr_->CurrentOffset();
+          if (w->batches.empty()) {
       w->batch->PrepareWotr(&new_batch, offsets, &data, loc);
-
       ret = wotr_->WotrWrite(data);
-      *(w->batch) = new_batch;
-      
+      *(w->batch) = new_batch; // batch has been modified!
       WriteBatchInternal::SetSequence(w->batch, sequence);
+      if (ret != 0) {
+        return Status::IOError();
+      }
+      write_with_wotr++;
+    } else {
+      for (auto batch : w->batches) {
+        batch->PrepareWotr(&new_batch, offsets, &data, loc);
+        ret = wotr_->WotrWrite(data);
+        *(batch) = new_batch; // batch has been modified!
+        WriteBatchInternal::SetSequence(batch, sequence);
+        if (ret != 0) {
+          return Status::IOError();
+        }
+        write_with_wotr++;
+      }
+    }
   }
   
-  if (ret == 0) {
-    auto stats = default_cf_internal_stats_;
-    stats->AddDBStats(InternalStats::kIntStatsWriteWithWotr, write_with_wotr);
-    RecordTick(stats_, WRITE_WITH_WOTR, write_with_wotr);
-  }
+  auto stats = default_cf_internal_stats_;
+  stats->AddDBStats(InternalStats::kIntStatsWriteWithWotr, write_with_wotr);
+  RecordTick(stats_, WRITE_WITH_WOTR, write_with_wotr);
+
   return Status::OK();
 }
 

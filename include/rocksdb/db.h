@@ -398,7 +398,8 @@ class DB {
   // }
 
   virtual Status MultiBatchWrite(const WriteOptions& /*options*/,
-                                 std::vector<WriteBatch*>&& /*updates*/) {
+                                 std::vector<WriteBatch*>&& /*updates*/,
+                                 std::vector<size_t>* = nullptr) {
     return Status::NotSupported();
   }
 
