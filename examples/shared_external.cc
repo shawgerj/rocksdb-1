@@ -254,6 +254,49 @@ int testOneDBMultiValue() {
     return 1;
 }
 
+int testOneDBMultiBatch() {
+    DB* db;
+    Status s = DB::Open(dbOptions, kDBPath, &db);
+    
+    std::string logfile = rootDir + "/vlog1.txt";
+    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
+    db->SetBoulevardier(blvd.get());
+    
+    RandomGenerator gen;
+    int value_size = 32;
+
+    std::vector<KVPair> kvvec;
+    for (int i = 0; i < 10; i++) {
+        Slice key = gen.Generate(sizeof(int));
+        Slice val = gen.Generate(value_size);
+        kvvec.push_back(KVPair(key, val));
+    }
+
+    // Put key-values
+    std::vector<size_t> offsets;
+    WriteBatch batch;
+    for (KVPair p : kvvec) {
+        batch.Put(p.GetKey(), p.GetValue());
+    }
+    s = db->Write(WriteOptions(), &batch, &offsets);
+    assert(s.ok());
+
+    std::string value;
+    // get values. Read backwards just in case there's a bug with only reading
+    // sequentially
+    for (int i = kvvec.size() - 1; i >= 0; i--) {
+        s = db->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
+        assert(s.ok());
+        assert(value == kvvec[i].GetValue());
+    }
+
+    delete db;
+    DestroyDB(kDBPath, dbOptions);
+//    unlink(logfile.c_str());
+
+    return 1;
+}
+
 int testOneDBMultiValue2() {
     DB* db;
     Status s = DB::Open(dbOptions, kDBPath, &db);

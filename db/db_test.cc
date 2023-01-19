@@ -1021,18 +1021,18 @@ TEST_F(DBTest, FailMoreDbPaths) {
 
 void CheckColumnFamilyMeta(const ColumnFamilyMetaData& cf_meta) {
   uint64_t cf_size = 0;
-  uint64_t cf_csize = 0;
+//  uint64_t cf_csize = 0;
   size_t file_count = 0;
   for (auto level_meta : cf_meta.levels) {
     uint64_t level_size = 0;
-    uint64_t level_csize = 0;
+    //    uint64_t level_csize = 0;
     file_count += level_meta.files.size();
     for (auto file_meta : level_meta.files) {
       level_size += file_meta.size;
     }
     ASSERT_EQ(level_meta.size, level_size);
     cf_size += level_size;
-    cf_csize += level_csize;
+//    cf_csize += level_csize;
   }
   ASSERT_EQ(cf_meta.file_count, file_count);
   ASSERT_EQ(cf_meta.size, cf_size);
@@ -1310,7 +1310,10 @@ TEST_F(DBTest, ApproximateSizesMemTable) {
     keys[i * 3 + 1] = i * 5 + 1;
     keys[i * 3 + 2] = i * 5 + 2;
   }
-  std::random_shuffle(std::begin(keys), std::end(keys));
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(std::begin(keys), std::end(keys), g);
 
   for (int i = 0; i < N * 3; i++) {
     ASSERT_OK(Put(Key(keys[i] + 1000), RandomString(&rnd, 1024)));
@@ -2584,7 +2587,7 @@ class ModelDB : public DB {
   }
     
   Status Write(const WriteOptions& /*options*/, WriteBatch* batch,
-               std::vector<size_t>* offsets) {
+               std::vector<size_t>* offsets) override {
     class Handler : public WriteBatch::Handler {
      public:
       KVMap* map_;
@@ -4258,7 +4261,10 @@ TEST_F(DBTest, DynamicLevelCompressionPerLevel) {
   for (int i = 0; i < kNKeys; i++) {
     keys[i] = i;
   }
-  std::random_shuffle(std::begin(keys), std::end(keys));
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(std::begin(keys), std::end(keys), g);
 
   Random rnd(301);
   Options options;
@@ -4341,7 +4347,10 @@ TEST_F(DBTest, DynamicLevelCompressionPerLevel2) {
   for (int i = 0; i < kNKeys; i++) {
     keys[i] = i;
   }
-  std::random_shuffle(std::begin(keys), std::end(keys));
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(std::begin(keys), std::end(keys), g);
 
   Random rnd(301);
   Options options;

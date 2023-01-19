@@ -899,14 +899,14 @@ if(NOT WIN32 OR ROCKSDB_INSTALL_ON_WINDOWS)
   )
 endif()
 
-CMAKE_DEPENDENT_OPTION(WITH_BENCHMARK_TOOLS "build with tests" ON
-  "CMAKE_BUILD_TYPE STREQUAL Release" ON)
-if(WITH_BENCHMARK_TOOLS)
-  add_executable(db_bench${ARTIFACT_SUFFIX}
-    tools/db_bench.cc)
-  target_link_libraries(db_bench${ARTIFACT_SUFFIX} ${LIBS} ${WOTR_LIB})
+# CMAKE_DEPENDENT_OPTION(WITH_BENCHMARK_TOOLS "build with tests" ON
+#   "CMAKE_BUILD_TYPE STREQUAL Release" ON)
+# if(WITH_BENCHMARK_TOOLS)
+#   add_executable(db_bench${ARTIFACT_SUFFIX}
+#     tools/db_bench.cc)
+#   target_link_libraries(db_bench${ARTIFACT_SUFFIX} ${LIBS} ${WOTR_LIB})
 
-endif()
+# endif()
 
 
 CMAKE_DEPENDENT_OPTION(WITH_TESTS "build with tests" ON
@@ -1114,7 +1114,7 @@ if(WITH_TESTS)
         EXCLUDE_FROM_DEFAULT_BUILD_RELWITHDEBINFO 1
         OUTPUT_NAME ${exename}${ARTIFACT_SUFFIX}
         )
-      target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} testutillib${ARTIFACT_SUFFIX} gtest ${LIBS})
+      target_link_libraries(${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX} testutillib${ARTIFACT_SUFFIX} gtest ${LIBS} ${WOTR_LIB})
       if(NOT "${exename}" MATCHES "db_sanity_test")
         add_test(NAME ${exename} COMMAND ${exename}${ARTIFACT_SUFFIX})
         add_dependencies(check ${CMAKE_PROJECT_NAME}_${exename}${ARTIFACT_SUFFIX})

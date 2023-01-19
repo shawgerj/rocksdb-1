@@ -7,6 +7,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <random>
 
 #include "monitoring/histogram.h"
 #include "monitoring/instrumented_mutex.h"
@@ -249,7 +250,10 @@ void ProfileQueries(bool enabled_time = false) {
   }
 
   if (FLAGS_random_key) {
-    std::random_shuffle(keys.begin(), keys.end());
+    std::random_device rd;
+    std::mt19937 g(rd());
+      
+    std::shuffle(keys.begin(), keys.end(), g);
   }
 #ifndef NDEBUG
   ThreadStatusUtil::TEST_SetStateDelay(ThreadStatus::STATE_MUTEX_WAIT, 1U);
@@ -522,7 +526,10 @@ TEST_F(PerfContextTest, SeekKeyComparison) {
   }
 
   if (FLAGS_random_key) {
-    std::random_shuffle(keys.begin(), keys.end());
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    std::shuffle(keys.begin(), keys.end(), g);
   }
 
   HistogramImpl hist_put_time;

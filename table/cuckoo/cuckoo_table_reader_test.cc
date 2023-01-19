@@ -485,7 +485,10 @@ void ReadKeys(uint64_t num, uint32_t batch_size) {
   for (uint64_t i = 0; i < num; ++i) {
     keys.push_back(2 * i);
   }
-  std::random_shuffle(keys.begin(), keys.end());
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(keys.begin(), keys.end(), g);
 
   PinnableSlice value;
   // Assume only the fast path is triggered
