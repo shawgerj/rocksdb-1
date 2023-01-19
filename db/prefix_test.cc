@@ -16,6 +16,7 @@ int main() {
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <random>
 
 #include "db/db_impl/db_impl.h"
 #include "monitoring/histogram.h"
@@ -585,7 +586,10 @@ TEST_F(PrefixTest, DynamicPrefixIterator) {
     }
 
     if (FLAGS_random_prefix) {
-      std::random_shuffle(prefixes.begin(), prefixes.end());
+      std::random_device rd;
+      std::mt19937 g(rd());
+
+      std::shuffle(prefixes.begin(), prefixes.end(), g);
     }
 
     HistogramImpl hist_put_time;

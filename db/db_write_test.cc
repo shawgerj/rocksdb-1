@@ -15,6 +15,7 @@
 #include "test_util/fault_injection_test_env.h"
 #include "test_util/sync_point.h"
 #include "util/string_util.h"
+#include "wotr.h"
 
 namespace rocksdb {
 
@@ -27,6 +28,167 @@ class DBWriteTest : public DBTestBase, public testing::WithParamInterface<int> {
 
   void Open() { DBTestBase::Reopen(GetOptions()); }
 };
+
+TEST_P(DBWriteTest, InitAndRegisterWOTR) {
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+}
+
+TEST_P(DBWriteTest, SingleWriteWOTR) {
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+
+  std::vector<size_t> offsets;
+  WriteBatch batch;
+  batch.Put("key1", "value1");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
+  ASSERT_EQ(offsets.size(), 1);
+
+  PinnableSlice value;
+  // get value
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
+  ASSERT_EQ(value.ToString(), "value1");
+}
+
+TEST_P(DBWriteTest, ManyWriteWOTR) {
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+
+  std::vector<size_t> offsets;
+  WriteBatch batch;
+  batch.Put("key1", "value1");
+  batch.Put("key2", "value2");
+  batch.Put("key3", "value3");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
+  ASSERT_EQ(offsets.size(), 3);
+
+  PinnableSlice value;
+  // get value
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
+  ASSERT_EQ(value.ToString(), "value1");
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key2", &value));
+  ASSERT_EQ(value.ToString(), "value2");
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
+  ASSERT_EQ(value.ToString(), "value3");
+
+}
+
+TEST_P(DBWriteTest, MultiBatchWOTR) {
+  Options options = GetOptions();
+  if (!options.enable_multi_thread_write) {
+    return;
+  }
+  constexpr int kNumBatch = 8;
+  constexpr int kBatchSize = 16;
+  options.write_buffer_size = 1024 * 128;
+  Reopen(options);
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+
+  
+  WriteOptions opt;
+  std::vector<WriteBatch> data(kNumBatch);
+  std::vector<size_t> offsets;
+
+  std::vector<WriteBatch*> batches;
+  for (int i = 0; i < kNumBatch; i++) {
+    WriteBatch* batch = &data[i];
+    batch->Clear();
+    for (int k = 0; k < kBatchSize; k++) {
+      batch->Put("key_" + ToString(i) + "_" + ToString(k),
+                 "value" + ToString(k));
+    }
+    batches.push_back(batch);
+  }
+  ASSERT_OK(dbfull()->MultiBatchWrite(opt, std::move(batches), &offsets));
+  ASSERT_EQ(offsets.size(), 128);
+
+  ReadOptions ropt;
+  PinnableSlice value;
+  for (int i = 0; i < kNumBatch; i++) {
+    for (int k = 0; k < kBatchSize; k++) {
+      ASSERT_OK(dbfull()->GetExternal(ropt,
+                                      "key_" + ToString(i) + "_" + ToString(k),
+                                      &value));
+      std::string expected_value = "value" + ToString(k);
+      ASSERT_EQ(expected_value, value.ToString());
+    }
+  }
+}
+
+TEST_P(DBWriteTest, MultiThreadWOTR) {
+  Options options = GetOptions();
+  if (!options.enable_multi_thread_write) {
+    return;
+  }
+  constexpr int kNumThreads = 4;
+  constexpr int kNumWrite = 4;
+  constexpr int kNumBatch = 8;
+  constexpr int kBatchSize = 16;
+  options.write_buffer_size = 1024 * 128;
+  Reopen(options);
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  
+  std::vector<port::Thread> threads;
+  // we don't know how the writes will be grouped. So count offsets generated
+  // per thread, and ensure it all adds up to 2048. 
+  std::atomic<uint32_t> total_offsets(0);
+  for (int t = 0; t < kNumThreads; t++) {
+    threads.push_back(port::Thread(
+        [&](int index) {
+          WriteOptions opt;
+          std::vector<WriteBatch> data(kNumBatch);
+          for (int j = 0; j < kNumWrite; j++) {
+            std::vector<WriteBatch*> batches;
+            std::vector<size_t> offsets;
+            for (int i = 0; i < kNumBatch; i++) {
+              WriteBatch* batch = &data[i];
+              batch->Clear();
+              for (int k = 0; k < kBatchSize; k++) {
+                batch->Put("key_" + ToString(index) + "_" + ToString(j) + "_" +
+                           ToString(i) + "_" + ToString(k),
+                           "value" + ToString(k));
+              }
+              batches.push_back(batch);
+            }
+            dbfull()->MultiBatchWrite(opt, std::move(batches), &offsets);
+            total_offsets += offsets.size();
+          }
+        },
+        t));
+  }
+  for (int i = 0; i < kNumThreads; i++) {
+    threads[i].join();
+  }
+
+  ASSERT_EQ(total_offsets, 2048); // 2048 offsets generated in total
+
+  ReadOptions opt;
+  for (int t = 0; t < kNumThreads; t++) {
+    PinnableSlice value;
+    for (int i = 0; i < kNumWrite; i++) {
+      for (int j = 0; j < kNumBatch; j++) {
+        for (int k = 0; k < kBatchSize; k++) {
+          ASSERT_OK(dbfull()->GetExternal(opt,
+                                  "key_" + ToString(t) + "_" + ToString(i) +
+                                      "_" + ToString(j) + "_" + ToString(k),
+                                  &value));
+          std::string expected_value = "value" + ToString(k);
+          ASSERT_EQ(expected_value, value.ToString());
+        }
+      }
+    }
+  }
+
+  Close();
+}
+
 
 // It is invalid to do sync write while disabling WAL.
 TEST_P(DBWriteTest, SyncAndDisableWAL) {

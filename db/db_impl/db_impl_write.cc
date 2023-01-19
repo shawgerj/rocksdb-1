@@ -1296,10 +1296,10 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   //  WriteBatch* to_be_cached_state = nullptr;
   StopWatch write_sw(env_, stats_, DB_WRITE_WOTR_TIME);
   for (auto w : write_group) {
-      WriteBatch new_batch;
-      std::string data;
-      size_t loc = wotr_->CurrentOffset();
-          if (w->batches.empty()) {
+    WriteBatch new_batch;
+    std::string data;
+    size_t loc = wotr_->CurrentOffset();
+    if (w->batch) {
       w->batch->PrepareWotr(&new_batch, offsets, &data, loc);
       ret = wotr_->WotrWrite(data);
       *(w->batch) = new_batch; // batch has been modified!
@@ -1309,11 +1309,11 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       }
       write_with_wotr++;
     } else {
-      for (auto batch : w->batches) {
-        batch->PrepareWotr(&new_batch, offsets, &data, loc);
+      for (size_t i = 0; i < w->batches.size(); i++) {
+        w->batches[i]->PrepareWotr(&new_batch, offsets, &data, loc);
         ret = wotr_->WotrWrite(data);
-        *(batch) = new_batch; // batch has been modified!
-        WriteBatchInternal::SetSequence(batch, sequence);
+        *(w->batches[i]) = new_batch; // batch has been modified!
+        WriteBatchInternal::SetSequence(w->batches[i], sequence);
         if (ret != 0) {
           return Status::IOError();
         }
