@@ -172,7 +172,7 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
 
       PERF_TIMER_STOP(write_pre_and_post_process_time);
       if (offsets != nullptr) {
-        WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+        writer.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
       }
       if (!write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
@@ -539,7 +539,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     if (!two_write_queues_) {
       if (offsets != nullptr) {
           PERF_TIMER_GUARD(write_wotr_time);
-        WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
+        status = WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
       }
       if (status.ok() && !write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
@@ -736,7 +736,7 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
 
     if (offsets != nullptr) {
         PERF_TIMER_GUARD(write_wotr_time);
-        WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+        w.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
     }
     if (w.status.ok() && !write_options.disableWAL) {
       PERF_TIMER_GUARD(write_wal_time);

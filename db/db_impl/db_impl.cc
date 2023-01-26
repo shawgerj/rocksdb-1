@@ -1493,13 +1493,16 @@ Status DBImpl::Get(const ReadOptions& read_options,
   return GetImpl(read_options, column_family, key, value);
 }
 
-void DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
+Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
     size_t len;
     size_t offset = std::stol(loc.data());
-    wotr_->WotrGet(offset, &data, &len);
+    if (wotr_->WotrGet(offset, &data, &len) < 0) {
+      return Status::IOError("GetExternal error reading from logfile.");
+    }
     value->GetSelf()->assign(data, len);
     value->PinSelf();
+    return Status::OK();
 }
 
 Status DBImpl::GetExternal(const ReadOptions& options,
@@ -1512,7 +1515,7 @@ Status DBImpl::GetExternal(const ReadOptions& options,
         return s;
     }
 
-    GetExternalImpl(pinnable_val, value);
+    s = GetExternalImpl(pinnable_val, value);
     return s;
 }
 

@@ -76,6 +76,46 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
 
 }
 
+TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetWotr(w.get()));
+
+//  std::vector<size_t> offsets;
+  WriteBatch batch;
+  batch.Put("key1", "value1");
+  batch.Put("key2", "value2");
+  batch.Delete("key1");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch));
+
+  std::string value;
+  ReadOptions ropt;
+  ASSERT_TRUE(dbfull()->Get(ropt, "key1", &value).IsNotFound());
+
+  WriteBatch batch2;
+  std::vector<size_t> offsets;
+  batch2.Put("key3", "value3");
+  batch2.Put("key4", "value4");
+  batch2.Delete("key3");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
+
+  PinnableSlice pvalue;
+  std::string svalue;
+  ReadOptions ropt2;
+  ASSERT_TRUE(dbfull()->Get(ropt2, "key3", &svalue).IsNotFound());  
+  ASSERT_TRUE(dbfull()->GetExternal(ropt2, "key3", &pvalue).IsNotFound());
+  
+  // PinnableSlice value;
+  // // get value
+  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
+  // ASSERT_EQ(value.ToString(), "value1");
+  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key2", &value));
+  // ASSERT_EQ(value.ToString(), "value2");
+  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
+  // ASSERT_EQ(value.ToString(), "value3");
+
+}
+
 TEST_P(DBWriteTest, MultiBatchWOTR) {
   Options options = GetOptions();
   if (!options.enable_multi_thread_write) {
