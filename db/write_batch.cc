@@ -165,6 +165,7 @@ class WotrBuilder : public WriteBatch::Handler {
   }
 
   Status DeleteCF(uint32_t, const Slice& key) override {
+    batch_->Delete(key);
     return Status::OK();
   }
 
