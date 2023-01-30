@@ -148,8 +148,9 @@ class WotrBuilder : public WriteBatch::Handler {
           loc_(loc) {}
   ~WotrBuilder() override {}
 
-  Status PutCF(uint32_t, const Slice& key, const Slice& value) override {
-    batch_->Put(key, std::to_string(logstring_->size() + loc_));
+  Status PutCF(uint32_t column_family_id, const Slice& key, const Slice& value) override {
+    WriteBatchInternal::Put(batch_, column_family_id, key, std::to_string(logstring_->size() + loc_));
+//    batch_->Put(key, std::to_string(logstring_->size() + loc_));
     // make header
     item_header *header = (item_header*)malloc(sizeof(item_header));
     header->ksize = key.size();
@@ -164,8 +165,8 @@ class WotrBuilder : public WriteBatch::Handler {
     return Status::OK();
   }
 
-  Status DeleteCF(uint32_t, const Slice& key) override {
-    batch_->Delete(key);
+  Status DeleteCF(uint32_t column_family_id, const Slice& key) override {
+    WriteBatchInternal::Delete(batch_, column_family_id, key);
     return Status::OK();
   }
 

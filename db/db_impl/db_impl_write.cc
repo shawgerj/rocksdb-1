@@ -1301,7 +1301,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
     size_t loc = wotr_->CurrentOffset();
     if (w->batch) {
       w->batch->PrepareWotr(&new_batch, offsets, &data, loc);
-      ret = wotr_->WotrWrite(data);
+      ret = wotr_->WotrWrite(data, int(need_log_sync));
       *(w->batch) = new_batch; // batch has been modified!
       WriteBatchInternal::SetSequence(w->batch, sequence);
       if (ret != 0) {
@@ -1311,7 +1311,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
     } else {
       for (size_t i = 0; i < w->batches.size(); i++) {
         w->batches[i]->PrepareWotr(&new_batch, offsets, &data, loc);
-        ret = wotr_->WotrWrite(data);
+        ret = wotr_->WotrWrite(data, int(need_log_sync));
         *(w->batches[i]) = new_batch; // batch has been modified!
         WriteBatchInternal::SetSequence(w->batches[i], sequence);
         if (ret != 0) {
