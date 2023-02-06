@@ -1282,18 +1282,18 @@ Status DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
   return status;
 }
 
-Status DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
-                                           WriteBatch* new_batch,
-                                           std::vector<size_t>* offsets,
-                                           bool need_log_sync) {
+std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
+                                                        WriteBatch* new_batch,
+                                                        bool need_log_sync) {
   std::string data;
+  std::vector<size_t> offsets;
   // generate data to be written to wotr - store in "data"
-  batch->PrepareWotr(offsets, &data);
+  batch->PrepareWotr(&offsets, &data);
   
   // write to wotr, it gives us the offset in the log
   size_t loc = wotr_->WotrWrite(data, int(need_log_sync));
   if (loc < 0) {
-    return Status::IOError();
+    return offsets; // it'll just be empty, I guess
   }
 
   WriteBatch::Iterator* iter = batch->NewIterator();
@@ -1301,16 +1301,16 @@ Status DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   int i = 0;
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
     if (iter->GetValueType() == kTypeValue) {
-      (*offsets)[i] += loc;
+      offsets[i] += loc;
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
-                              iter->Key(), std::to_string((*offsets)[i]));
+                              iter->Key(), std::to_string(offsets[i]));
       i++;
     } else if (iter->GetValueType() == kTypeDeletion) {
       WriteBatchInternal::Delete(new_batch, iter->GetColumnFamilyId(),
                                  iter->Key());
     }
   }
-  return Status::OK();
+  return offsets;
 }
       
 Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
@@ -1321,6 +1321,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   (void)need_log_sync;
   (void)need_log_dir_sync;
   Status status;
+  std::vector<size_t> new_offsets;
 
   size_t write_with_wotr = 0;
   // TODO idk what this does
@@ -1329,10 +1330,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   for (auto w : write_group) {
     WriteBatch new_batch;
     if (w->batch) {
-      status = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, offsets, need_log_sync);
-      if (!status.ok()) {
-        return status;
-      }
+      *offsets = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync);
       
       *(w->batch) = new_batch; // batch has been modified!
       
@@ -1340,11 +1338,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       write_with_wotr++;
     } else {
       for (size_t i = 0; i < w->batches.size(); i++) {
-        status = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, offsets, need_log_sync);
-        if (!status.ok()) {
-          return status;
-        }
-        
+        new_offsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
+        offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
         *(w->batches[i]) = new_batch; // batch has been modified!
         
         WriteBatchInternal::SetSequence(w->batches[i], sequence);

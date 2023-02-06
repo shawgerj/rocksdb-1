@@ -165,10 +165,9 @@ class DBImpl : public DB {
   virtual Status Write(const WriteOptions& options,
                        WriteBatch* updates, std::vector<size_t>* offsets) override;
 
-  Status WriteWotrAndPrepareNewBatch(WriteBatch* batch,
-                                     WriteBatch* new_batch,
-                                     std::vector<size_t>* offsets,
-                                     bool need_log_sync);
+  std::vector<size_t> WriteWotrAndPrepareNewBatch(WriteBatch* batch,
+                                                  WriteBatch* new_batch,
+                                                  bool need_log_sync);
 
   Status WriteToExt(const WriteThread::WriteGroup& write_group,
                     std::vector<size_t>* offsets,
