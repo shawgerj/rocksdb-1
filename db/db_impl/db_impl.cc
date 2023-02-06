@@ -265,6 +265,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
 
 Status DBImpl::SetWotr(Wotr* wotr) {
     wotr_ = wotr;
+    wotr_->Register(GetName());
     return Status::OK();
 }
 
@@ -1496,9 +1497,15 @@ Status DBImpl::Get(const ReadOptions& read_options,
 Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
     size_t len;
+    if (loc.empty()) {
+      std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
+    }
     size_t offset = std::stol(loc.data());
     std::cout << "GetExternal read offset: " << offset << std::endl;
-    if (wotr_->WotrGet(offset, &data, &len) < 0) {
+    if (wotr_ == nullptr) {
+      std::cout << "No wotr! Thirsty!" << std::endl;
+    }
+    if (wotr_->WotrGet(offset, &data, &len, 0) < 0) {
       return Status::IOError("GetExternal error reading from logfile.");
     }
 
@@ -1513,6 +1520,8 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
+    std::cout << "getting key " << key.ToString() << std::endl;
+    std::cout << s.ToString() << std::endl;
     if (!s.ok()) {
         return s;
     }
