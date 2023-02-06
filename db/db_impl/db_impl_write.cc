@@ -1293,6 +1293,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   // write to wotr, it gives us the offset in the log
   size_t loc = wotr_->WotrWrite(data, int(need_log_sync));
   if (loc < 0) {
+    std::cout << "rocksdb: bad wotr write" << std::endl;
     return offsets; // it'll just be empty, I guess
   }
 
@@ -1331,7 +1332,11 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
     WriteBatch new_batch;
     if (w->batch) {
       *offsets = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync);
-      
+      for (auto o : *offsets) {
+          std::cout << "write offsets: " << std::endl;
+          std::cout << o << " " << std::endl;
+        }
+
       *(w->batch) = new_batch; // batch has been modified!
       
       WriteBatchInternal::SetSequence(w->batch, sequence);
@@ -1340,6 +1345,10 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       for (size_t i = 0; i < w->batches.size(); i++) {
         new_offsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
         offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
+        for (auto o : *offsets) {
+          std::cout << "batch write offsets: " << std::endl;
+          std::cout << o << " " << std::endl;
+        }
         *(w->batches[i]) = new_batch; // batch has been modified!
         
         WriteBatchInternal::SetSequence(w->batches[i], sequence);
