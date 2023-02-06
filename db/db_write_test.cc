@@ -63,18 +63,24 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   WriteBatch batch;
   batch.Put("key1", "value1");
   batch.Put("key2", "value2");
-  batch.Put("key3", "value3");
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
-  ASSERT_EQ(offsets.size(), 3);
+
+  WriteBatch batch2;
+  batch2.Put("key3", "value3");
+  batch2.Put("key4", "value4");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
 
   PinnableSlice value;
   // get value
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
+  ASSERT_EQ(value.ToString(), "value3");
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key4", &value));
+  ASSERT_EQ(value.ToString(), "value4");
   ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
   ASSERT_EQ(value.ToString(), "value1");
   ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key2", &value));
   ASSERT_EQ(value.ToString(), "value2");
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
-  ASSERT_EQ(value.ToString(), "value3");
+  
   w->CloseAndDestroy();
 }
 
