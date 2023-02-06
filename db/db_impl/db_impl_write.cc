@@ -1331,12 +1331,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   for (auto w : write_group) {
     WriteBatch new_batch;
     if (w->batch) {
-      *offsets = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync);
-      for (auto o : *offsets) {
-          std::cout << "write offsets: " << std::endl;
-          std::cout << o << " " << std::endl;
-        }
-
+      new_offsets = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync);
+      offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
       *(w->batch) = new_batch; // batch has been modified!
       
       WriteBatchInternal::SetSequence(w->batch, sequence);
@@ -1345,10 +1341,6 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       for (size_t i = 0; i < w->batches.size(); i++) {
         new_offsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
         offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
-        for (auto o : *offsets) {
-          std::cout << "batch write offsets: " << std::endl;
-          std::cout << o << " " << std::endl;
-        }
         *(w->batches[i]) = new_batch; // batch has been modified!
         
         WriteBatchInternal::SetSequence(w->batches[i], sequence);
