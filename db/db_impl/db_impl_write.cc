@@ -67,29 +67,6 @@ Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
     return WriteImpl(write_options, my_batch, nullptr, nullptr, 0, false, nullptr, 0, nullptr, offsets);
 }
     
-
-// Status DBImpl::WriteToExt(WriteBatch* my_batch, WriteBatch* new_batch,
-//                           std::vector<size_t>* offsets) {
-//     if (my_batch == nullptr) {
-//         return Status::Corruption("Batch is nullptr!");
-//     }
-
-//     std::string data;
-//     // ask for offset of logfile to write to 
-//     size_t loc = wotr_->CurrentOffset();
-
-//     // build new WriteBatch - values replaced with locs
-//     // build offsets vector
-//     my_batch->PrepareWotr(new_batch, offsets, &data, loc);
-
-//     int ret;
-//     ret = wotr_->WotrWrite(data, offsets);
-//     if (ret < 0) {
-//         return Status::IOError();
-//     }
-//     return Status::OK();
-// }
-
 #ifndef ROCKSDB_LITE
 Status DBImpl::WriteWithCallback(const WriteOptions& write_options,
                                  WriteBatch* my_batch,
@@ -1301,12 +1278,13 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
       
   int i = 0;
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-    if (iter->GetValueType() == kTypeValue) {
+    char v_type = iter->GetValueType();
+    if (v_type == kTypeValue || v_type == kTypeColumnFamilyValue) {
       offsets[i] += loc;
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
                               iter->Key(), std::to_string(offsets[i]));
       i++;
-    } else if (iter->GetValueType() == kTypeDeletion) {
+    } else if (v_type == kTypeDeletion || v_type == kTypeColumnFamilyDeletion) {
       WriteBatchInternal::Delete(new_batch, iter->GetColumnFamilyId(),
                                  iter->Key());
     }
