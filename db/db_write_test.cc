@@ -33,6 +33,7 @@ TEST_P(DBWriteTest, InitAndRegisterWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
   ASSERT_OK(dbfull()->SetWotr(w.get()));
+  w->CloseAndDestroy();
 }
 
 TEST_P(DBWriteTest, SingleWriteWOTR) {
@@ -50,6 +51,7 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
   // get value
   ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
   ASSERT_EQ(value.ToString(), "value1");
+  w->CloseAndDestroy();
 }
 
 TEST_P(DBWriteTest, ManyWriteWOTR) {
@@ -73,7 +75,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   ASSERT_EQ(value.ToString(), "value2");
   ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
   ASSERT_EQ(value.ToString(), "value3");
-
+  w->CloseAndDestroy();
 }
 
 TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
@@ -104,16 +106,7 @@ TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
   ReadOptions ropt2;
   ASSERT_TRUE(dbfull()->Get(ropt2, "key3", &svalue).IsNotFound());  
   ASSERT_TRUE(dbfull()->GetExternal(ropt2, "key3", &pvalue).IsNotFound());
-  
-  // PinnableSlice value;
-  // // get value
-  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
-  // ASSERT_EQ(value.ToString(), "value1");
-  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key2", &value));
-  // ASSERT_EQ(value.ToString(), "value2");
-  // ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
-  // ASSERT_EQ(value.ToString(), "value3");
-
+  w->CloseAndDestroy();
 }
 
 TEST_P(DBWriteTest, MultiBatchWOTR) {
@@ -158,6 +151,7 @@ TEST_P(DBWriteTest, MultiBatchWOTR) {
       ASSERT_EQ(expected_value, value.ToString());
     }
   }
+  w->CloseAndDestroy();
 }
 
 TEST_P(DBWriteTest, MultiThreadWOTR) {
@@ -227,6 +221,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   }
 
   Close();
+  w->CloseAndDestroy();
 }
 
 
