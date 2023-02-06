@@ -137,28 +137,80 @@ struct BatchContentClassifier : public WriteBatch::Handler {
   }
 };
 
+// class WotrOffsetWBBuilder : public WriteBatch::Handler {
+// public:
+//   explicit WotrOffsetWBBuilder(WriteBatch* new_batch,
+//                                std::vector<size_t>* offsets)
+//         : batch_(new_batch),
+//           curr_offset_(offset_start) {}
+//   ~WotrOffsetWBBuilder() override {}
+
+//   Status PutCF(uint32_t cf_id, const Slice& key, const Slice& value) override {
+//     WriteBatchInternal::Put(batch_, cf_id, key, std::to_string(curr_offset_));
+//     curr_offset_ += value.size();
+//     return Status::OK();
+//   }
+
+//   Status DeleteCF(uint32_t cf_id, const Slice& key) override {
+//     WriteBatchInternal::Delete(batch_, cf_id, key);
+//     return Status::OK();
+//   }
+
+//   Status SingleDeleteCF(uint32_t, const Slice& key) override {
+//     return Status::OK();
+//   }
+
+//   Status DeleteRangeCF(uint32_t, const Slice& begin_key,
+//                        const Slice& end_key) override {
+//     return Status::OK();
+//   }
+
+//   Status MergeCF(uint32_t, const Slice& key, const Slice&) override {
+//     return Status::OK();
+//   }
+
+//   Status PutBlobIndexCF(uint32_t, const Slice&, const Slice&) override {
+//     return Status::OK();
+//   }
+
+//   Status MarkBeginPrepare(bool) override {
+//     return Status::OK();
+//   }
+
+//   Status MarkEndPrepare(const Slice&) override {
+//     return Status::OK();
+//   }
+
+//   Status MarkCommit(const Slice&) override {
+//     return Status::OK();
+//   }
+
+//   Status MarkRollback(const Slice&) override {
+//     return Status::OK();
+//   }
+
+//  private:
+//   WriteBatch* batch_;
+//   size_t curr_offset_;
+// };
+
 // shawgerj added
 class WotrBuilder : public WriteBatch::Handler {
  public:
-    explicit WotrBuilder(WriteBatch* new_batch, std::vector<size_t>* o,
-                         std::string* data, size_t loc)
-        : batch_(new_batch),
-          offsets_(o),
-          logstring_(data),
-          loc_(loc) {}
+    explicit WotrBuilder(std::vector<size_t>* o, std::string* data)
+        : offsets_(o),
+          logstring_(data) {}
   ~WotrBuilder() override {}
 
-  Status PutCF(uint32_t column_family_id, const Slice& key, const Slice& value) override {
-    WriteBatchInternal::Put(batch_, column_family_id, key, std::to_string(logstring_->size() + loc_));
-//    batch_->Put(key, std::to_string(logstring_->size() + loc_));
+  Status PutCF(uint32_t cf_id, const Slice& key, const Slice& value) override {
     // make header
     item_header *header = (item_header*)malloc(sizeof(item_header));
     header->ksize = key.size();
     header->vsize = value.size();
 
     // record offset
-    offsets_->push_back(logstring_->size() + loc_);
-    // append header, key, and value to logstring_. This will get written to disk
+    offsets_->push_back(logstring_->size());
+    // append header, key, and value to logstring_
     logstring_->append((const char*)header, sizeof(item_header));
     logstring_->append(key.data(), key.size());
     logstring_->append(value.data(), value.size());
@@ -166,7 +218,6 @@ class WotrBuilder : public WriteBatch::Handler {
   }
 
   Status DeleteCF(uint32_t column_family_id, const Slice& key) override {
-    WriteBatchInternal::Delete(batch_, column_family_id, key);
     return Status::OK();
   }
 
@@ -212,10 +263,8 @@ class WotrBuilder : public WriteBatch::Handler {
   }
 
  private:
-  WriteBatch* batch_;
   std::vector<size_t>* offsets_;
   std::string* logstring_;
-  size_t loc_;
 };
 
 class TimestampAssigner : public WriteBatch::Handler {
@@ -1251,10 +1300,15 @@ Status WriteBatch::PopSavePoint() {
   return Status::OK();
 }
  
-Status WriteBatch::PrepareWotr(WriteBatch* new_batch, std::vector<size_t>* offsets, std::string* data, size_t loc) {
-    WotrBuilder wotr_bld(new_batch, offsets, data, loc);
+Status WriteBatch::PrepareWotr(std::vector<size_t>* offsets, std::string* data) {
+    WotrBuilder wotr_bld(offsets, data);
     return Iterate(&wotr_bld);
 }
+
+// Status WriteBatch::GenBatchWithOffsets(WriteBatch* new_batch, std::vector<size_t>* offsets) {
+//     WotrOffsetWBBuilder wotr_bld(new_batch, offsets);
+//     return Iterate(&wotr_bld);
+// }
 
 Status WriteBatch::AssignTimestamp(const Slice& ts) {
   TimestampAssigner ts_assigner(ts);

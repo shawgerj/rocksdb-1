@@ -16,6 +16,7 @@
 #include <iostream>
 #include <vector>
 
+#include "db/dbformat.h"
 #include "db/error_handler.h"
 #include "db/event_helpers.h"
 #include "monitoring/perf_context_imp.h"
@@ -1281,6 +1282,37 @@ Status DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
   return status;
 }
 
+Status DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
+                                           WriteBatch* new_batch,
+                                           std::vector<size_t>* offsets,
+                                           bool need_log_sync) {
+  std::string data;
+  // generate data to be written to wotr - store in "data"
+  batch->PrepareWotr(offsets, &data);
+  
+  // write to wotr, it gives us the offset in the log
+  size_t loc = wotr_->WotrWrite(data, int(need_log_sync));
+  if (loc < 0) {
+    return Status::IOError();
+  }
+
+  WriteBatch::Iterator* iter = batch->NewIterator();
+      
+  int i = 0;
+  for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+    if (iter->GetValueType() == kTypeValue) {
+      (*offsets)[i] += loc;
+      WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
+                              iter->Key(), std::to_string((*offsets)[i]));
+      i++;
+    } else if (iter->GetValueType() == kTypeDeletion) {
+      WriteBatchInternal::Delete(new_batch, iter->GetColumnFamilyId(),
+                                 iter->Key());
+    }
+  }
+  return Status::OK();
+}
+      
 Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
                           std::vector<size_t>* offsets,
                           bool need_log_sync, bool need_log_dir_sync,
@@ -1291,32 +1323,31 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   Status status;
 
   size_t write_with_wotr = 0;
-  int ret = 1;
   // TODO idk what this does
   //  WriteBatch* to_be_cached_state = nullptr;
   StopWatch write_sw(env_, stats_, DB_WRITE_WOTR_TIME);
   for (auto w : write_group) {
     WriteBatch new_batch;
-    std::string data;
-    size_t loc = wotr_->CurrentOffset();
     if (w->batch) {
-      w->batch->PrepareWotr(&new_batch, offsets, &data, loc);
-      ret = wotr_->WotrWrite(data, int(need_log_sync));
-      *(w->batch) = new_batch; // batch has been modified!
-      WriteBatchInternal::SetSequence(w->batch, sequence);
-      if (ret != 0) {
-        return Status::IOError();
+      status = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, offsets, need_log_sync);
+      if (!status.ok()) {
+        return status;
       }
+      
+      *(w->batch) = new_batch; // batch has been modified!
+      
+      WriteBatchInternal::SetSequence(w->batch, sequence);
       write_with_wotr++;
     } else {
       for (size_t i = 0; i < w->batches.size(); i++) {
-        w->batches[i]->PrepareWotr(&new_batch, offsets, &data, loc);
-        ret = wotr_->WotrWrite(data, int(need_log_sync));
-        *(w->batches[i]) = new_batch; // batch has been modified!
-        WriteBatchInternal::SetSequence(w->batches[i], sequence);
-        if (ret != 0) {
-          return Status::IOError();
+        status = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, offsets, need_log_sync);
+        if (!status.ok()) {
+          return status;
         }
+        
+        *(w->batches[i]) = new_batch; // batch has been modified!
+        
+        WriteBatchInternal::SetSequence(w->batches[i], sequence);
         write_with_wotr++;
       }
     }

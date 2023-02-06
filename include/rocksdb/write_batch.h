@@ -316,8 +316,8 @@ class WriteBatch : public WriteBatchBase {
   bool HasRollback() const;
 
   // generate offsets and data to write to logfile
-  Status PrepareWotr(WriteBatch* new_batch, std::vector<size_t>* offsets,
-                     std::string* data, size_t loc);
+  Status PrepareWotr(std::vector<size_t>* offsets, std::string* data);
+  
   // Assign timestamp to write batch
   Status AssignTimestamp(const Slice& ts);
 
