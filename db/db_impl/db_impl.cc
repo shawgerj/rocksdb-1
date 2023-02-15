@@ -265,6 +265,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
 
 Status DBImpl::SetWotr(Wotr* wotr) {
     wotr_ = wotr;
+    wotr_->Register(GetName());
     return Status::OK();
 }
 
@@ -1498,7 +1499,7 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     size_t len;
     size_t offset = std::stol(loc.data());
     std::cout << "GetExternal read offset: " << offset << std::endl;
-    if (wotr_->WotrGet(offset, &data, &len) < 0) {
+    if (wotr_->WotrGet(offset, &data, &len, 0) < 0) {
       return Status::IOError("GetExternal error reading from logfile.");
     }
 

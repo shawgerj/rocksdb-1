@@ -207,6 +207,7 @@ class WotrBuilder : public WriteBatch::Handler {
     item_header *header = (item_header*)malloc(sizeof(item_header));
     header->ksize = key.size();
     header->vsize = value.size();
+    header->cfid = cf_id;
 
     // record offset
     offsets_->push_back(logstring_->size());

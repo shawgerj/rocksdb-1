@@ -1268,8 +1268,8 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   batch->PrepareWotr(&offsets, &data);
   
   // write to wotr, it gives us the offset in the log
-  size_t loc = wotr_->WotrWrite(data, int(need_log_sync));
-  if (loc < 0) {
+  logoffset_t* loc = wotr_->WotrWrite(data, int(need_log_sync));
+  if (loc == nullptr) {
     std::cout << "rocksdb: bad wotr write" << std::endl;
     return offsets; // it'll just be empty, I guess
   }
@@ -1280,7 +1280,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
     char v_type = iter->GetValueType();
     if (v_type == kTypeValue || v_type == kTypeColumnFamilyValue) {
-      offsets[i] += loc;
+      offsets[i] += loc->offset;
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
                               iter->Key(), std::to_string(offsets[i]));
       i++;
@@ -1289,6 +1289,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
                                  iter->Key());
     }
   }
+  delete loc;
   return offsets;
 }
       
