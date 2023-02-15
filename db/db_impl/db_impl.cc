@@ -1497,8 +1497,14 @@ Status DBImpl::Get(const ReadOptions& read_options,
 Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
     size_t len;
+    if (loc.empty()) {
+      std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
+    }
     size_t offset = std::stol(loc.data());
     std::cout << "GetExternal read offset: " << offset << std::endl;
+    if (wotr_ == nullptr) {
+      std::cout << "No wotr! Thirsty!" << std::endl;
+    }
     if (wotr_->WotrGet(offset, &data, &len, 0) < 0) {
       return Status::IOError("GetExternal error reading from logfile.");
     }
