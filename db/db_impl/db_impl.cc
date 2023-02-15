@@ -1514,6 +1514,8 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
+    std::cout << "getting key " << key.ToString() << std::endl;
+    std::cout << s.ToString() << std::endl;
     if (!s.ok()) {
         return s;
     }
