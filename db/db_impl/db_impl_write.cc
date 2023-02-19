@@ -335,6 +335,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     return status;
   }
 
+  bool wotr_write = (offsets != nullptr);
   if (immutable_db_options_.enable_multi_thread_write) {
     std::vector<WriteBatch*> updates(1);
     updates[0] = my_batch;
@@ -349,7 +350,8 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
   WriteThread::Writer w(write_options, my_batch, callback, log_ref,
-                        disable_memtable, batch_cnt, pre_release_callback);
+                        disable_memtable, wotr_write,
+                        batch_cnt, pre_release_callback);
 
   if (!write_options.disableWAL) {
     RecordTick(stats_, WRITE_WITH_WAL);
@@ -515,7 +517,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
     if (!two_write_queues_) {
-      if (offsets != nullptr) {
+      if (wotr_write) {
           PERF_TIMER_GUARD(write_wotr_time);
         status = WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
       }
@@ -652,13 +654,14 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
                                   uint64_t* log_used, uint64_t log_ref,
                                   bool disable_memtable, uint64_t* seq_used,
                                   std::vector<size_t>* offsets) {
+  bool wotr_write = (offsets != nullptr);
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
   StopWatch write_sw(env_, immutable_db_options_.statistics.get(), DB_WRITE);
 
   WriteContext write_context;
 
   WriteThread::Writer w(write_options, my_batch, callback, log_ref,
-                        disable_memtable);
+                        disable_memtable, wotr_write);
   write_thread_.JoinBatchGroup(&w);
   if (w.state == WriteThread::STATE_GROUP_LEADER) {
     WriteThread::WriteGroup wal_write_group;
@@ -712,7 +715,7 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
 
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
-    if (offsets != nullptr) {
+    if (wotr_write) {
         PERF_TIMER_GUARD(write_wotr_time);
         w.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
     }
@@ -842,7 +845,7 @@ Status DBImpl::WriteImplWALOnly(
   Status status;
   PERF_TIMER_GUARD(write_pre_and_post_process_time);
   WriteThread::Writer w(write_options, my_batch, callback, log_ref,
-                        disable_memtable, sub_batch_cnt, pre_release_callback);
+                        disable_memtable, false, sub_batch_cnt, pre_release_callback);
   RecordTick(stats_, WRITE_WITH_WAL);
   StopWatch write_sw(env_, immutable_db_options_.statistics.get(), DB_WRITE);
 
