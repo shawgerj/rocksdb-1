@@ -475,6 +475,12 @@ size_t WriteThread::EnterAsBatchGroupLeader(Writer* leader,
       break;
     }
 
+    if (!w->to_wotr && leader->to_wotr) {
+      // Do not include a normal write into a batch that is destined for
+      // WOTR valuelog
+      break;
+    }
+
     if (w->batches.empty()) {
       // Do not include those writes with nullptr batch. Those are not writes,
       // those are something else. They want to be alone
