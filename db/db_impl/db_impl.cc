@@ -1501,7 +1501,6 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
       std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
     }
     size_t offset = std::stol(loc.data());
-    std::cout << "GetExternal read offset: " << offset << std::endl;
     if (wotr_ == nullptr) {
       std::cout << "No wotr! Thirsty!" << std::endl;
     }
@@ -1520,8 +1519,6 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
-    std::cout << "getting key " << key.ToString() << std::endl;
-    std::cout << s.ToString() << std::endl;
     if (!s.ok()) {
         return s;
     }
