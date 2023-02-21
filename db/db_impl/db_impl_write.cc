@@ -268,9 +268,9 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
       tracer_->Write(my_batch);
     }
   }
-  if (write_options.sync && write_options.disableWAL) {
-    return Status::InvalidArgument("Sync writes has to enable WAL.");
-  }
+  // if (write_options.sync && write_options.disableWAL) {
+  //   return Status::InvalidArgument("Sync writes has to enable WAL.");
+  // }
   if (two_write_queues_ && immutable_db_options_.enable_pipelined_write) {
     return Status::NotSupported(
         "pipelined_writes is not compatible with concurrent prepares");
