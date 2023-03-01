@@ -715,7 +715,7 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
 
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
-    if (wotr_write) {
+    if (w.status.ok() && wotr_write) {
         PERF_TIMER_GUARD(write_wotr_time);
         w.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
     }
