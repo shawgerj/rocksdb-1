@@ -970,6 +970,24 @@ rocksdb_pinnableslice_t* rocksdb_get_external(
   return v;
 }
 
+rocksdb_pinnableslice_t* rocksdb_pget_external(
+    rocksdb_t* db,
+    const rocksdb_readoptions_t* options,
+    const char* key, size_t keylen,
+    char** errptr) {
+  rocksdb_pinnableslice_t* v = new (rocksdb_pinnableslice_t);
+  Status s = db->rep->GetPExternal(options->rep, Slice(key, keylen), &v->rep);
+  
+  if (!s.ok()) {
+    delete(v);
+    if (!s.IsNotFound()) {
+      SaveError(errptr, s);
+    }
+    return nullptr;
+  }
+  return v;
+}
+
 char* rocksdb_get_cf(
     rocksdb_t* db,
     const rocksdb_readoptions_t* options,

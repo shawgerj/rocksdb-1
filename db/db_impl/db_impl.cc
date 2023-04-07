@@ -1527,6 +1527,47 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     return s;
 }
 
+Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
+    char* data;
+//    size_t len;
+    if (loc.empty()) {
+      std::cout << "Slice was empty! No LSM data at that key" << std::endl;
+    }
+    // 16 byte array [<--offset8-->|<--len8-->]
+    const char* wotr_loc = loc.data();
+    size_t offset = 0;
+    size_t len = 0;
+    // calculate offset and len
+    offset = ((size_t)wotr_loc[7] & 0xFF) | (((size_t)wotr_loc[6] & 0xFF) << 8 ) | (((size_t)wotr_loc[5] & 0xFF) << 16 ) | (((size_t)wotr_loc[4] & 0xFF) << 24 ) | (((size_t)wotr_loc[3] & 0xFF) << 32 ) | (((size_t)wotr_loc[2] & 0xFF) << 40 ) | (((size_t)wotr_loc[1] & 0xFF) << 48 ) | (((size_t)wotr_loc[0] & 0xFF) << 56 );
+
+    len = ((size_t)wotr_loc[15] & 0xFF) | (((size_t)wotr_loc[14] & 0xFF) << 8 ) | (((size_t)wotr_loc[13] & 0xFF) << 16 ) | (((size_t)wotr_loc[12] & 0xFF) << 24 ) | (((size_t)wotr_loc[11] & 0xFF) << 32 ) | (((size_t)wotr_loc[10] & 0xFF) << 40 ) | (((size_t)wotr_loc[9] & 0xFF) << 48 ) | (((size_t)wotr_loc[8] & 0xFF) << 56 );
+
+    if (wotr_ == nullptr) {
+      std::cout << "No wotr! Thirsty!" << std::endl;
+    }
+    if (wotr_->WotrPGet(offset, len, &data) < 0) {
+      return Status::IOError("GetPExternal error reading from logfile.");
+    }
+
+    value->GetSelf()->assign(data, len);
+    value->PinSelf();
+    return Status::OK();
+}
+  
+Status DBImpl::GetPExternal(const ReadOptions& options,
+                            ColumnFamilyHandle* column_family, const Slice& key,
+                            PinnableSlice* value) {
+    assert(value != nullptr);
+    PinnableSlice pinnable_val;
+    auto s = GetImpl(options, column_family, key, &pinnable_val);
+    if (!s.ok()) {
+        return s;
+    }
+
+    s = GetPExternalImpl(pinnable_val, value);
+    return s;
+}
+
  
 Status DBImpl::GetImpl(const ReadOptions& read_options,
                        ColumnFamilyHandle* column_family, const Slice& key,

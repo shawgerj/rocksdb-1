@@ -101,6 +101,12 @@ class StackableDB : public DB {
                              PinnableSlice* value) override {
     return db_->GetExternal(options, column_family, key, value);
   }    
+  using DB::GetPExternal;
+  virtual Status GetPExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             PinnableSlice* value) override {
+    return db_->GetPExternal(options, column_family, key, value);
+  }    
 
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(

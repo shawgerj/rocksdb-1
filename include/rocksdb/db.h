@@ -439,6 +439,16 @@ class DB {
                              PinnableSlice* value) {
     return GetExternal(options, DefaultColumnFamily(), key, value);
   }
+  
+  virtual Status GetPExternal(const ReadOptions& options,
+                                    ColumnFamilyHandle* column_family,
+				    const Slice& key,
+                                    PinnableSlice* value) = 0;
+
+  virtual Status GetPExternal(const ReadOptions& options, const Slice& key,
+                             PinnableSlice* value) {
+    return GetPExternal(options, DefaultColumnFamily(), key, value);
+  }
 
   // If keys[i] does not exist in the database, then the i'th returned
   // status will be one for which Status::IsNotFound() is true, and
