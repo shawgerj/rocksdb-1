@@ -204,15 +204,15 @@ class WotrBuilder : public WriteBatch::Handler {
 
   Status PutCF(uint32_t cf_id, const Slice& key, const Slice& value) override {
     // make header
-    item_header *header = (item_header*)malloc(sizeof(item_header));
-    header->ksize = key.size();
-    header->vsize = value.size();
-    header->cfid = cf_id;
+    item_header header;
+    header.ksize = key.size();
+    header.vsize = value.size();
+    header.cfid = cf_id;
 
     // record offset
     offsets_->push_back(logstring_->size());
     // append header, key, and value to logstring_
-    logstring_->append((const char*)header, sizeof(item_header));
+    logstring_->append((const char*)&header, sizeof(item_header));
     logstring_->append(key.data(), key.size());
     logstring_->append(value.data(), value.size());
     return Status::OK();

@@ -157,6 +157,12 @@ class BlobDB : public StackableDB {
                              PinnableSlice* value) override {
       return Status::NotSupported("Not supported operation in blob db.");
   }                               
+  using rocksdb::StackableDB::GetPExternal;
+  virtual Status GetPExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family, const Slice& key,
+                             PinnableSlice* value) override {
+      return Status::NotSupported("Not supported operation in blob db.");
+  }                               
 
   using rocksdb::StackableDB::MultiGet;
   virtual std::vector<Status> MultiGet(

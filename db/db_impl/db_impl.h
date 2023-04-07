@@ -190,6 +190,12 @@ class DBImpl : public DB {
 			     const Slice& key,
                              PinnableSlice* value) override;
 
+  using DB::GetPExternal;
+  virtual Status GetPExternal(const ReadOptions& options,
+                             ColumnFamilyHandle* column_family,
+			     const Slice& key,
+                             PinnableSlice* value) override;
+
   using DB::MultiGet;
   virtual std::vector<Status> MultiGet(
       const ReadOptions& options,
@@ -430,6 +436,7 @@ class DBImpl : public DB {
   // Note: 'value_found' from KeyMayExist propagates here
 
   Status GetExternalImpl(PinnableSlice& loc, PinnableSlice* value);
+  Status GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value);
     
   Status GetImpl(const ReadOptions& options, ColumnFamilyHandle* column_family,
                  const Slice& key, PinnableSlice* value,
