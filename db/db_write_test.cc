@@ -89,31 +89,72 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
 }
 
 TEST_P(DBWriteTest, ManyWriteWOTR) {
+  int num_writes = 4;
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
   ASSERT_OK(dbfull()->SetWotr(w.get()));
 
+  std::vector<std::string> keys;
+  std::vector<std::string> values;
+  std::vector<std::string> locators;
+  std::vector<std::string> keys_ext;
+  for (int i = 0; i < num_writes; i++) {
+    std::ostringstream k, v;
+    k << "key" << i;
+    v << "value" << i;
+    keys.push_back(k.str());
+    values.push_back(v.str());
+  } 
+
   std::vector<size_t> offsets;
   WriteBatch batch;
-  batch.Put("key1", "value1");
-  batch.Put("key2", "value2");
+  batch.Put(keys[0], values[0]);
+  batch.Put(keys[1], values[1]);
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
 
+  for (int i = 0; i < 2; i++) {
+    std::string loc;
+    buildLocator(&loc, offsets[i], keys[i].length(), values[i].length());
+    locators.push_back(loc);
+  }
+
   WriteBatch batch2;
-  batch2.Put("key3", "value3");
-  batch2.Put("key4", "value4");
+  batch2.Put(keys[2], values[2]);
+  batch2.Put(keys[3], values[3]);
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
+
+  for (int i = 2; i < num_writes; i++) {
+    std::string loc;
+    buildLocator(&loc, offsets[i], keys[i].length(), values[i].length());
+    locators.push_back(loc);
+  }
 
   PinnableSlice value;
   // get value
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key3", &value));
-  ASSERT_EQ(value.ToString(), "value3");
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key4", &value));
-  ASSERT_EQ(value.ToString(), "value4");
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
-  ASSERT_EQ(value.ToString(), "value1");
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key2", &value));
-  ASSERT_EQ(value.ToString(), "value2");
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), keys[2], &value));
+  ASSERT_EQ(value.ToString(), values[2]);
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), keys[3], &value));
+  ASSERT_EQ(value.ToString(), values[3]);
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), keys[0], &value));
+  ASSERT_EQ(value.ToString(), values[0]);
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), keys[1], &value));
+  ASSERT_EQ(value.ToString(), values[1]);
+
+  WriteBatch batch_ext;
+  for (int i = 0; i < num_writes; i++) {
+    std::ostringstream k;
+    k << keys[i] << "_ext";
+    keys_ext.push_back(k.str());
+    batch_ext.Put(k.str(), locators[i]);
+  }
+
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch_ext, nullptr));
+
+  for (int i = 0; i < num_writes; i++) {
+    PinnableSlice val;
+    ASSERT_OK(dbfull()->GetPExternal(ReadOptions(), keys_ext[i], &val));
+    ASSERT_EQ(val.ToString(), values[i]);
+  }
   
   w->CloseAndDestroy();
 }
