@@ -2489,6 +2489,12 @@ class ModelDB : public DB {
                      PinnableSlice* value) override {
       return Status::NotSupported("Not supported in ModelDB.");
   }
+  using DB::GetPExternal;
+  Status GetPExternal(const ReadOptions& options,
+                     ColumnFamilyHandle* column_family, const Slice& key,
+                     PinnableSlice* value) override {
+      return Status::NotSupported("Not supported in ModelDB.");
+  }
   using DB::MultiGet;
   std::vector<Status> MultiGet(
       const ReadOptions& /*options*/,

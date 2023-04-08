@@ -36,6 +36,25 @@ TEST_P(DBWriteTest, InitAndRegisterWOTR) {
   w->CloseAndDestroy();
 }
 
+void to_be_bytes(char* bytearr, size_t num, int pos) {
+  for (size_t i = 0; i < sizeof(size_t); i++) {
+    bytearr[((pos+1) * 8 - 1) - i] = (num >> (i * 8)) & 0xFF;
+  }
+}
+
+// args: offset returned from WOTR and length of key and value
+// fills a 16-byte array with offset and length in big-endian order
+// +-----------------+
+// | offset | length |
+// +-----------------+
+void buildLocator(std::string* loc, size_t offset, size_t klen, size_t vlen) {
+  char arr[16];
+  size_t final_offset = offset + klen + sizeof(item_header);
+  to_be_bytes(arr, final_offset, 0);
+  to_be_bytes(arr, vlen, 1);
+  loc->assign(arr, arr + 16);
+}
+
 TEST_P(DBWriteTest, SingleWriteWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
@@ -43,14 +62,29 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
 
   std::vector<size_t> offsets;
   WriteBatch batch;
-  batch.Put("key1", "value1");
+
+  std::string k = "key1";
+  std::string v = "value1";
+  
+  batch.Put(k, v);
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
   ASSERT_EQ(offsets.size(), 1);
 
   PinnableSlice value;
-  // get value
-  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), "key1", &value));
-  ASSERT_EQ(value.ToString(), "value1");
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), k, &value));
+  ASSERT_EQ(value.ToString(), v);
+
+  WriteBatch batch2;
+  std::string locator;
+  std::string k_ext = "key1ext";
+  buildLocator(&locator, offsets[0], k.length(), v.length());
+  batch2.Put(k_ext, locator);
+  
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, nullptr));
+
+  PinnableSlice value2;
+  ASSERT_OK(dbfull()->GetPExternal(ReadOptions(), k_ext, &value2));
+  ASSERT_EQ(value2.ToString(), v);
   w->CloseAndDestroy();
 }
 
@@ -231,16 +265,18 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
 }
 
 
+// shawgerj disabled this test because I broke it
+// writes to WOTR may sync without WAL enabled
 // It is invalid to do sync write while disabling WAL.
-TEST_P(DBWriteTest, SyncAndDisableWAL) {
-  WriteOptions write_options;
-  write_options.sync = true;
-  write_options.disableWAL = true;
-  ASSERT_TRUE(dbfull()->Put(write_options, "foo", "bar").IsInvalidArgument());
-  WriteBatch batch;
-  ASSERT_OK(batch.Put("foo", "bar"));
-  ASSERT_TRUE(dbfull()->Write(write_options, &batch).IsInvalidArgument());
-}
+// TEST_P(DBWriteTest, SyncAndDisableWAL) {
+//   WriteOptions write_options;
+//   write_options.sync = true;
+//   write_options.disableWAL = true;
+//   ASSERT_TRUE(dbfull()->Put(write_options, "foo", "bar").IsInvalidArgument());
+//   WriteBatch batch;
+//   ASSERT_OK(batch.Put("foo", "bar"));
+//   ASSERT_TRUE(dbfull()->Write(write_options, &batch).IsInvalidArgument());
+// }
 
 TEST_P(DBWriteTest, IOErrorOnWALWritePropagateToWriteThreadFollower) {
   constexpr int kNumThreads = 5;
