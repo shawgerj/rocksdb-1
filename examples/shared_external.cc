@@ -14,7 +14,7 @@
 #include "rocksdb/slice.h"
 #include "rocksdb/options.h"
 #include "../util/random.h"
-#include "boulevardier.h"
+#include "wotr.h"
 #include "raftlog.h"
 
 #define DB_SIZE  (20L * 1024 * 1024 * 1024)
@@ -22,7 +22,7 @@
 
 using namespace rocksdb;
 
-std::string rootDir = "/mydata2";
+std::string rootDir = "/users/johnshawger/dbtest";
 std::string kDBPath = rootDir + "/rocksdb_tests";
 std::string kDBPath2 = rootDir + "/rocksdb_tests2";
 Options dbOptions;
@@ -137,7 +137,7 @@ public:
         pos_ = 0;
     }
 
-    Slice Generate(unsigned int len) {
+    Slice Generate(size_t len) {
         assert(len <= data_.size());
         if (pos_ + len > data_.size()) {
             pos_ = 0;
@@ -146,7 +146,7 @@ public:
         return Slice(data_.data() + pos_ - len, len);
     }
 
-    Slice GenerateWithTTL(unsigned int len) {
+    Slice GenerateWithTTL(size_t len) {
         assert(len <= data_.size());
         if (pos_ + len > data_.size()) {
             pos_ = 0;
@@ -188,8 +188,8 @@ int testOneDBOneValue() {
     Status s = DB::Open(dbOptions, kDBPath, &db);
     
     std::string logfile = rootDir + "/vlog1.txt";
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db->SetWotr(w.get());
 
     // Put key-value
     std::vector<size_t> offsets;
@@ -198,11 +198,11 @@ int testOneDBOneValue() {
     s = db->Write(WriteOptions(), &batch, &offsets);
     assert(s.ok());
 
-    std::string value;
+    PinnableSlice value;
     // get value
     s = db->GetExternal(ReadOptions(), "key1", &value);
     assert(s.ok());
-    assert(value == "value1");
+    assert(value.ToString() == "value1");
 
     delete db;
     DestroyDB(kDBPath, dbOptions);
@@ -216,8 +216,8 @@ int testOneDBMultiValue() {
     Status s = DB::Open(dbOptions, kDBPath, &db);
     
     std::string logfile = rootDir + "/vlog1.txt";
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db->SetWotr(w.get());
     
     RandomGenerator gen;
     int value_size = 32;
@@ -238,10 +238,10 @@ int testOneDBMultiValue() {
     s = db->Write(WriteOptions(), &batch, &offsets);
     assert(s.ok());
 
-    std::string value;
+    PinnableSlice value;
     // get values. Read backwards just in case there's a bug with only reading
     // sequentially
-    for (int i = kvvec.size() - 1; i >= 0; i--) {
+    for (int i = (int)kvvec.size() - 1; i >= 0; i--) {
         s = db->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
         assert(s.ok());
         assert(value == kvvec[i].GetValue());
@@ -259,8 +259,8 @@ int testOneDBMultiBatch() {
     Status s = DB::Open(dbOptions, kDBPath, &db);
     
     std::string logfile = rootDir + "/vlog1.txt";
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db->SetWotr(w.get());
     
     RandomGenerator gen;
     int value_size = 32;
@@ -281,10 +281,10 @@ int testOneDBMultiBatch() {
     s = db->Write(WriteOptions(), &batch, &offsets);
     assert(s.ok());
 
-    std::string value;
+    PinnableSlice value;
     // get values. Read backwards just in case there's a bug with only reading
     // sequentially
-    for (int i = kvvec.size() - 1; i >= 0; i--) {
+    for (size_t i = kvvec.size() - 1; i >= 0; i--) {
         s = db->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
         assert(s.ok());
         assert(value == kvvec[i].GetValue());
@@ -302,8 +302,8 @@ int testOneDBMultiValue2() {
     Status s = DB::Open(dbOptions, kDBPath, &db);
     
     std::string logfile = rootDir + "/vlog1.txt";
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db->SetWotr(w.get());
     
     RandomGenerator gen;
     int value_size = 32;
@@ -331,10 +331,10 @@ int testOneDBMultiValue2() {
     }
     assert(all_offsets.size() == kvvec.size());
 
-    std::string value;
+    PinnableSlice value;
     // get values. Read backwards just in case there's a bug with only reading
     // sequentially
-    for (int i = kvvec.size() - 1; i >= 0; i--) {
+    for (int i = (int)kvvec.size() - 1; i >= 0; i--) {
         s = db->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
         assert(s.ok());
         assert(value == kvvec[i].GetValue());
@@ -352,8 +352,8 @@ int testOneDBMissingKey() {
     Status s = DB::Open(dbOptions, kDBPath, &db);
     
     std::string logfile = rootDir + "/vlog1.txt";
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db->SetWotr(w.get());
 
     std::vector<size_t> offsets;
     assert(offsets.empty());
@@ -364,7 +364,7 @@ int testOneDBMissingKey() {
     assert(s.ok());
     assert(offsets.size() == 2);
 
-    std::string value;
+    PinnableSlice value;
     // get value
     s = db->GetExternal(ReadOptions(), "key2", &value);
     assert(!s.ok());
@@ -385,9 +385,9 @@ int testTwoDBSharedOneValue() {
     
     std::string logfile = rootDir + "/vlog1.txt";
 
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db1->SetBoulevardier(blvd.get());
-    db2->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db1->SetWotr(w.get());
+    db2->SetWotr(w.get());
 
     // Put key-value
     std::vector<size_t> offset;
@@ -400,7 +400,7 @@ int testTwoDBSharedOneValue() {
     s = db2->Write(WriteOptions(), &batch2);
     assert(s.ok());
 
-    std::string value;
+    PinnableSlice value;
     // get value
     s = db1->GetExternal(ReadOptions(), "key1", &value);
     assert(s.ok());
@@ -426,9 +426,9 @@ int testTwoDBSharedMultiValue() {
     
     std::string logfile = rootDir + "/vlog1.txt";
 
-    auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-    db1->SetBoulevardier(blvd.get());
-    db2->SetBoulevardier(blvd.get());
+    auto w = std::make_shared<Wotr>(logfile.c_str());
+    db1->SetWotr(w.get());
+    db2->SetWotr(w.get());
 
     RandomGenerator gen;
     int value_size = 32;
@@ -457,17 +457,17 @@ int testTwoDBSharedMultiValue() {
     s = db2->Write(WriteOptions(), &batch2);
     assert(s.ok());
 
-    std::string value;
+    PinnableSlice value;
     // get values. Read backwards just in case there's a bug with only reading
     // sequentially
-    for (int i = kvvec.size() - 1; i >= 0; i--) {
+    for (int i = (int)kvvec.size() - 1; i >= 0; i--) {
         s = db1->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
         assert(s.ok());
         assert(value == kvvec[i].GetValue());
     }
 
     // and get values from db2, which never inserted values into the log
-    for (int i = 0; i < kvvec.size(); i++) {
+    for (int i = 0; i < (int)kvvec.size(); i++) {
         s = db2->GetExternal(ReadOptions(), kvvec[i].GetKey(), &value);
         assert(s.ok());
         assert(value == kvvec[i].GetValue());
@@ -507,11 +507,11 @@ int concurrentWriteTest(int n, size_t work) {
   s = DB::Open(dbOptions, kDBPath, &db1);
     
   std::string logfile = rootDir + "/vlog1.txt";
-  auto blvd = std::make_shared<Boulevardier>(logfile.c_str());
-  db1->SetBoulevardier(blvd.get());
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  db1->SetWotr(w.get());
   
 
-  struct tArgs* args = new tArgs[n];
+  struct tArgs* args = (struct tArgs*)malloc(sizeof(struct tArgs) * n);
   for (int i = 0; i < n; i++) {
     args[i].start = i * work;
     args[i].num = work;
@@ -523,7 +523,7 @@ int concurrentWriteTest(int n, size_t work) {
     t.join();
   }
 
-  std::string value;
+  PinnableSlice value;
   for (size_t i = 0; i < n * work; i++) {
     std::string k = "key" + std::to_string(i);
     std::string expected_value = "value" + std::to_string(i);
@@ -532,7 +532,7 @@ int concurrentWriteTest(int n, size_t work) {
     assert(value == expected_value);
   }
 
-  delete args;
+  free(args);
   delete db1;
   DestroyDB(kDBPath, dbOptions);
   unlink(logfile.c_str());
@@ -557,10 +557,10 @@ int doBenchmark(size_t value_size, bool shared_log, bool wal) {
   else
     log2 = rootDir + "/vlog2.txt";
 
-  auto blvd1 = std::make_shared<Boulevardier>(log1.c_str());
-  auto blvd2 = std::make_shared<Boulevardier>(log2.c_str());
-  db1->SetBoulevardier(blvd1.get());
-  db2->SetBoulevardier(blvd2.get());
+  auto w1 = std::make_shared<Wotr>(log1.c_str());
+  auto w2 = std::make_shared<Wotr>(log2.c_str());
+  db1->SetWotr(w1.get());
+  db2->SetWotr(w2.get());
 
   auto raftlog = std::make_unique<RaftLog>(RL_SIZE);
   size_t nfill = (size_t)DB_SIZE / value_size;
@@ -640,19 +640,19 @@ int main() {
     dbOptions.create_if_missing = true;
 
     // correctness tests
-//    assert(testOneDBOneValue() == 1);
-//    assert(testOneDBMultiValue() == 1);
-    // assert(testOneDBMultiValue2() == 1);
-    // assert(testOneDBMissingKey() == 1);
-    // assert(testTwoDBSharedOneValue() == 1);
-    // assert(testTwoDBSharedMultiValue() == 1);
-    //    assert(concurrentWriteTest(1, 100) == 1);
-    //    assert(concurrentWriteTest(20, 1000) == 1);
+    assert(testOneDBOneValue() == 1);
+    assert(testOneDBMultiValue() == 1);
+    assert(testOneDBMultiValue2() == 1);
+//    assert(testOneDBMissingKey() == 1);
+    //assert(testTwoDBSharedOneValue() == 1);
+    //assert(testTwoDBSharedMultiValue() == 1);
+//    assert(concurrentWriteTest(1, 100) == 1);
+//    assert(concurrentWriteTest(20, 1000) == 1);
     // this takes awhile but passes
-    //    assert(concurrentWriteTest(8, 1000000) == 1);
+    assert(concurrentWriteTest(8, 1000000) == 1);
 
 
-    doBenchmark(4096, 0, 1);
+//    doBenchmark(4096, 0, 1);
     
     return 0;
 }
