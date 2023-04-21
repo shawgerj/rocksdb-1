@@ -97,6 +97,8 @@ const std::vector<std::pair<Tickers, std::string>> TickersNameMap = {
      "rocksdb.block.cachecompressed.add.failures"},
     {WAL_FILE_SYNCED, "rocksdb.wal.synced"},
     {WAL_FILE_BYTES, "rocksdb.wal.bytes"},
+    {WOTR_FILE_SYNCED, "rocksdb.wotr.synced"},
+    {WOTR_FILE_BYTES, "rocksdb.wotr.bytes"},
     {WRITE_DONE_BY_SELF, "rocksdb.write.self"},
     {WRITE_DONE_BY_OTHER, "rocksdb.write.other"},
     {WRITE_TIMEDOUT, "rocksdb.write.timeout"},

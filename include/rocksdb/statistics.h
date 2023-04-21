@@ -194,6 +194,8 @@ enum Tickers : uint32_t {
   BLOCK_CACHE_COMPRESSED_ADD_FAILURES,
   WAL_FILE_SYNCED,  // Number of times WAL sync is done
   WAL_FILE_BYTES,   // Number of bytes written to WAL
+  WOTR_FILE_SYNCED,  // Number of times WOTR sync is done
+  WOTR_FILE_BYTES,   // Number of bytes written to WOTR
 
   // Writes can be processed by requesting thread or by the thread at the
   // head of the writers queue.

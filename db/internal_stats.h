@@ -120,6 +120,7 @@ class InternalStats {
     kIntStatsNumMax,
     kIntStatsWriteWithWotr,
     kIntStatsWotrFileBytes,
+    kIntStatsWotrFileSynced,
   };
 
   InternalStats(int num_levels, Env* env, ColumnFamilyData* cfd)

@@ -150,6 +150,15 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
 
       PERF_TIMER_STOP(write_pre_and_post_process_time);
       if (offsets != nullptr) {
+        PERF_TIMER_GUARD(write_wotr_time);
+        stats->AddDBStats(InternalStats::kIntStatsWriteDoneBySelf, 1);
+        RecordTick(stats_, WRITE_DONE_BY_SELF, 1);
+        if (wal_write_group.size > 1) {
+          stats->AddDBStats(InternalStats::kIntStatsWriteDoneByOther,
+                            wal_write_group.size - 1);
+
+          RecordTick(stats_, WRITE_DONE_BY_OTHER, wal_write_group.size - 1);
+        }        
         writer.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
       }
       if (!write_options.disableWAL) {
@@ -355,6 +364,9 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
 
   if (!write_options.disableWAL) {
     RecordTick(stats_, WRITE_WITH_WAL);
+  }
+  if (wotr_write) {
+    RecordTick(stats_, WRITE_WITH_WOTR);
   }
 
   StopWatch write_sw(env_, immutable_db_options_.statistics.get(), DB_WRITE);
@@ -717,6 +729,14 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
 
     if (w.status.ok() && wotr_write) {
         PERF_TIMER_GUARD(write_wotr_time);
+        stats->AddDBStats(InternalStats::kIntStatsWriteDoneBySelf, 1);
+        RecordTick(stats_, WRITE_DONE_BY_SELF, 1);
+        if (wal_write_group.size > 1) {
+          stats->AddDBStats(InternalStats::kIntStatsWriteDoneByOther,
+                            wal_write_group.size - 1);
+          RecordTick(stats_, WRITE_DONE_BY_OTHER, wal_write_group.size - 1);
+        }
+
         w.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
     }
     if (w.status.ok() && !write_options.disableWAL) {
@@ -1277,6 +1297,15 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
     return offsets; // it'll just be empty, I guess
   }
 
+  // do metrics, its a better place than WriteToExt since we can do per-write
+  auto stats = default_cf_internal_stats_;
+  if (need_log_sync) {
+    stats->AddDBStats(InternalStats::kIntStatsWotrFileSynced, 1);
+    RecordTick(stats_, WOTR_FILE_SYNCED);
+  }
+  stats->AddDBStats(InternalStats::kIntStatsWotrFileBytes, data.size());
+  RecordTick(stats_, WOTR_FILE_BYTES, data.size());
+  
   WriteBatch::Iterator* iter = batch->NewIterator();
       
   int i = 0;
