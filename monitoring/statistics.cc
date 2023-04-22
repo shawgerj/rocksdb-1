@@ -188,6 +188,7 @@ const std::vector<std::pair<Histograms, std::string>> HistogramsNameMap = {
     {TABLE_SYNC_MICROS, "rocksdb.table.sync.micros"},
     {COMPACTION_OUTFILE_SYNC_MICROS, "rocksdb.compaction.outfile.sync.micros"},
     {WAL_FILE_SYNC_MICROS, "rocksdb.wal.file.sync.micros"},
+    {WOTR_FILE_SYNC_MICROS, "rocksdb.wotr.file.sync.micros"},
     {MANIFEST_FILE_SYNC_MICROS, "rocksdb.manifest.file.sync.micros"},
     {TABLE_OPEN_IO_MICROS, "rocksdb.table.open.io.micros"},
     {DB_MULTIGET, "rocksdb.db.multiget.micros"},

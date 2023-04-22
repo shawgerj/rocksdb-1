@@ -1308,7 +1308,7 @@ Status DBImpl::Flush(const FlushOptions& flush_options,
   ROCKS_LOG_INFO(immutable_db_options_.info_log, "[%s] Manual flush start.",
                  cfh->GetName().c_str());
   Status s;
-  if (wotr_ != nullptr && wotr_->Flush() < 0) {
+  if (wotr_ != nullptr && wotr_->Sync() < 0) {
     return Status::IOError();
   }
   
@@ -1339,7 +1339,7 @@ Status DBImpl::Flush(const FlushOptions& flush_options,
     ROCKS_LOG_INFO(immutable_db_options_.info_log,
                    "Manual atomic flush start.\n"
                    "=====Column families:=====");
-    if (wotr_ != nullptr && wotr_->Flush() < 0) {
+    if (wotr_ != nullptr && wotr_->Sync() < 0) {
       return Status::IOError();
     }
     for (auto cfh : column_families) {

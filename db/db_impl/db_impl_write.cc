@@ -1291,11 +1291,16 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   batch->PrepareWotr(&offsets, &data);
   
   // write to wotr, it gives us the offset in the log
-  logoffset_t* loc = wotr_->WotrWrite(data, int(need_log_sync));
+  logoffset_t* loc = wotr_->WotrWrite(data);
   if (loc == nullptr) {
     std::cout << "rocksdb: bad wotr write" << std::endl;
     return offsets; // it'll just be empty, I guess
   }
+
+  if (need_log_sync) {
+    StopWatch sw(env_, stats_, WAL_FILE_SYNC_MICROS);
+    wotr_->Sync();
+  }             
 
   // do metrics, its a better place than WriteToExt since we can do per-write
   auto stats = default_cf_internal_stats_;
