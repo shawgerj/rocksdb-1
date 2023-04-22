@@ -5032,7 +5032,7 @@ class Benchmark {
     int64_t puts = 0;
     int64_t found = 0;
     int64_t seek = 0;
-    int64_t seek_found = 0;
+//    int64_t seek_found = 0;
     int64_t bytes = 0;
     const int64_t default_value_max = 1 * 1024 * 1024;
     int64_t value_max = default_value_max;
@@ -5167,7 +5167,7 @@ class Benchmark {
             seek++;
             read++;
             if (single_iter->Valid() && single_iter->key().compare(key) == 0) {
-              seek_found++;
+//              seek_found++;
             }
             int64_t scan_length =
                 ParetoCdfInversion(u, FLAGS_iter_theta, FLAGS_iter_k,
@@ -5489,19 +5489,19 @@ class Benchmark {
 
     fprintf(stderr, "num reads to do %" PRIu64 "\n", reads_);
     Duration duration(FLAGS_duration, reads_);
-    uint64_t num_seek_to_first = 0;
-    uint64_t num_next = 0;
+//    uint64_t num_seek_to_first = 0;
+//    uint64_t num_next = 0;
     while (!duration.Done(1)) {
       if (!iter->Valid()) {
         iter->SeekToFirst();
-        num_seek_to_first++;
+//        num_seek_to_first++;
       } else if (!iter->status().ok()) {
         fprintf(stderr, "Iterator error: %s\n",
                 iter->status().ToString().c_str());
         abort();
       } else {
         iter->Next();
-        num_next++;
+//        num_next++;
       }
 
       thread->stats.FinishedOps(&db_, db_.db, 1, kSeek);
