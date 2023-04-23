@@ -1298,7 +1298,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   }
 
   if (need_log_sync) {
-    StopWatch sw(env_, stats_, WAL_FILE_SYNC_MICROS);
+    StopWatch sw(env_, stats_, WOTR_FILE_SYNC_MICROS);
     wotr_->Sync();
   }             
 

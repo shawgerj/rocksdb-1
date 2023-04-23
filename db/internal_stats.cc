@@ -987,8 +987,10 @@ void InternalStats::DumpDBStats(std::string* value) {
   uint64_t wal_bytes = GetDBStats(InternalStats::kIntStatsWalFileBytes);
   uint64_t wal_synced = GetDBStats(InternalStats::kIntStatsWalFileSynced);
   uint64_t write_with_wal = GetDBStats(InternalStats::kIntStatsWriteWithWal);
-  uint64_t write_with_wotr = GetDBStats(InternalStats::kIntStatsWriteWithWotr);
+
   uint64_t wotr_bytes = GetDBStats(InternalStats::kIntStatsWotrFileBytes);
+  uint64_t wotr_synced = GetDBStats(InternalStats::kIntStatsWotrFileSynced);
+  uint64_t write_with_wotr = GetDBStats(InternalStats::kIntStatsWriteWithWotr);
   uint64_t write_stall_micros =
       GetDBStats(InternalStats::kIntStatsWriteStallMicros);
 
@@ -1083,6 +1085,9 @@ void InternalStats::DumpDBStats(std::string* value) {
   db_stats_snapshot_.wal_bytes = wal_bytes;
   db_stats_snapshot_.wal_synced = wal_synced;
   db_stats_snapshot_.write_with_wal = write_with_wal;
+  db_stats_snapshot_.wotr_bytes = wotr_bytes;
+  db_stats_snapshot_.wotr_synced = wotr_synced;
+  db_stats_snapshot_.write_with_wotr = write_with_wotr;
   db_stats_snapshot_.write_stall_micros = write_stall_micros;
 }
 
