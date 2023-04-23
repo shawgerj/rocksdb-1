@@ -479,6 +479,10 @@ class InternalStats {
     uint64_t wal_bytes;               // Bytes written to WAL
     uint64_t wal_synced;              // Number of times WAL is synced
     uint64_t write_with_wal;          // Number of writes that request WAL
+    uint64_t wotr_bytes;               // Bytes written to WOTR
+    uint64_t wotr_synced;              // Number of times WOTR is synced
+    uint64_t write_with_wotr;          // Number of writes that request WOTR
+    
     // These count the number of writes processed by the calling thread or
     // another thread.
     uint64_t write_other;
@@ -497,6 +501,9 @@ class InternalStats {
           wal_bytes(0),
           wal_synced(0),
           write_with_wal(0),
+          wotr_bytes(0),
+          wotr_synced(0),
+          write_with_wotr(0),
           write_other(0),
           write_self(0),
           num_keys_written(0),
@@ -508,6 +515,9 @@ class InternalStats {
       wal_bytes = 0;
       wal_synced = 0;
       write_with_wal = 0;
+      wotr_bytes = 0;
+      wotr_synced = 0;
+      write_with_wotr = 0;
       write_other = 0;
       write_self = 0;
       num_keys_written = 0;
@@ -632,6 +642,7 @@ class InternalStats {
     kIntStatsNumMax,
     kIntStatsWriteWithWotr,
     kIntStatsWotrFileBytes,
+    kIntStatsWotrFileSynced,
   };
 
   InternalStats(int /*num_levels*/, Env* /*env*/, ColumnFamilyData* /*cfd*/) {}
