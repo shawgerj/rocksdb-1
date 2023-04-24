@@ -1336,7 +1336,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
                           bool need_log_sync, bool need_log_dir_sync,
                           SequenceNumber sequence) {
   // TODO add sync. Look in WriteToWAL for an example
-  (void)need_log_sync;
+//  (void)need_log_sync;
   (void)need_log_dir_sync;
   Status status;
   std::vector<size_t> new_offsets;
