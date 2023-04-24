@@ -145,9 +145,13 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
       write_thread_.UpdateLastSequence(current_sequence + total_count - 1);
       stats->AddDBStats(InternalStats::kIntStatsNumKeysWritten, total_count);
       RecordTick(stats_, NUMBER_KEYS_WRITTEN, total_count);
-      stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
-      RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
-      RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
+
+      // if we are using the valuelog, this should be accounted in WriteToExt
+      if (offsets == nullptr) {
+        stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
+        RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
+        RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
+      }
 
       PERF_TIMER_STOP(write_pre_and_post_process_time);
       if (offsets != nullptr) {
@@ -682,7 +686,8 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
       write_thread_.WaitForMemTableWriters();
     }
     mutex_.Lock();
-    bool need_log_sync = !write_options.disableWAL && write_options.sync;
+//    bool need_log_sync = !write_options.disableWAL && write_options.sync;
+    bool need_log_sync = write_options.sync;
     bool need_log_dir_sync = need_log_sync && !log_dir_synced_;
     // PreprocessWrite does its own perf timing.
     PERF_TIMER_STOP(write_pre_and_post_process_time);
@@ -722,9 +727,11 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
     auto stats = default_cf_internal_stats_;
     stats->AddDBStats(InternalStats::kIntStatsNumKeysWritten, total_count);
     RecordTick(stats_, NUMBER_KEYS_WRITTEN, total_count);
-    stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
-    RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
-    RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
+    if (!wotr_write) {
+      stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
+      RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
+      RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
+    }
 
     PERF_TIMER_STOP(write_pre_and_post_process_time);
 
@@ -1342,6 +1349,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   std::vector<size_t> new_offsets;
 
   size_t write_with_wotr = 0;
+  size_t total_byte_size = 0;
   // TODO idk what this does
   //  WriteBatch* to_be_cached_state = nullptr;
   StopWatch write_sw(env_, stats_, DB_WRITE_WOTR_TIME);
@@ -1354,6 +1362,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       
       WriteBatchInternal::SetSequence(w->batch, sequence);
       write_with_wotr++;
+      total_byte_size = WriteBatchInternal::AppendedByteSize(
+        total_byte_size, WriteBatchInternal::ByteSize(w->batch));
     } else {
       for (size_t i = 0; i < w->batches.size(); i++) {
         new_offsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
@@ -1362,6 +1372,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
         
         WriteBatchInternal::SetSequence(w->batches[i], sequence);
         write_with_wotr++;
+        total_byte_size = WriteBatchInternal::AppendedByteSize(
+          total_byte_size, WriteBatchInternal::ByteSize(w->batches));
       }
     }
   }
@@ -1369,6 +1381,9 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   auto stats = default_cf_internal_stats_;
   stats->AddDBStats(InternalStats::kIntStatsWriteWithWotr, write_with_wotr);
   RecordTick(stats_, WRITE_WITH_WOTR, write_with_wotr);
+  stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
+  RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
+  RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
 
   return Status::OK();
 }
