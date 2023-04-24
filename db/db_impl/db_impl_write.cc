@@ -105,7 +105,8 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
     }
     WriteThread::WriteGroup wal_write_group;
     mutex_.Lock();
-    bool need_log_sync = !write_options.disableWAL && write_options.sync;
+//    bool need_log_sync = !write_options.disableWAL && write_options.sync;
+    bool need_log_sync = write_options.sync;
     bool need_log_dir_sync = need_log_sync && !log_dir_synced_;
     PERF_TIMER_STOP(write_pre_and_post_process_time);
     writer.status =
