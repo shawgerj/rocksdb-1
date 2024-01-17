@@ -1299,8 +1299,8 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   batch->PrepareWotr(&offsets, &data);
   
   // write to wotr, it gives us the offset in the log
-  logoffset_t* loc = wotr_->WotrWrite(data);
-  if (loc == nullptr) {
+  ssize_t loc = wotr_->WotrWrite(data);
+  if (loc < 0) {
     std::cout << "rocksdb: bad wotr write" << std::endl;
     return offsets; // it'll just be empty, I guess
   }
@@ -1325,7 +1325,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
     char v_type = iter->GetValueType();
     if (v_type == kTypeValue || v_type == kTypeColumnFamilyValue) {
-      offsets[i] += loc->offset;
+      offsets[i] = (size_t)loc;
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
                               iter->Key(), std::to_string(offsets[i]));
       i++;
@@ -1334,7 +1334,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
                                  iter->Key());
     }
   }
-  delete loc;
+  
   return offsets;
 }
       
@@ -2032,6 +2032,14 @@ Status DBImpl::SwitchMemtable(ColumnFamilyData* cfd, WriteContext* context) {
   }
 
   cfd->mem()->SetNextLogNumber(logfile_number_);
+
+  if (wotr_ != nullptr) {
+    Slice wotr_ptr_key = Slice("wotr_ptr");
+    Slice wotr_ptr = Slice(std::to_string(wotr_->Head()));
+    cfd->mem()->Add(versions_->LastSequence(), kTypeValue, wotr_ptr_key,
+                    wotr_ptr);
+  }
+
   cfd->imm()->Add(cfd->mem(), &context->memtables_to_free_);
   new_mem->Ref();
   cfd->SetMemtable(new_mem);

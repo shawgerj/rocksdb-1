@@ -1,0 +1,8 @@
+* Support recovery from WOTR log [0/4]
+** TODO Insert key containing head of log when a memtable is made immutable
+** TODO Write a test using WOTR which fails to recover data
+** TODO Verify that the head of the log is correct using the test
+** TODO Implement WOTR recovery
+Look at DBImpl::RecoverLogFiles() in particular.
+
+Perhaps the recovery procedure is run when WOTR is initialized? That means the initialization procedure will need to take an argument to enable or disable recovery (we don't want KV-LSM to try to recover from the valuelog). 

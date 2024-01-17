@@ -1659,7 +1659,6 @@ TEST_F(DBBloomFilterTest, DynamicBloomFilterNewColumnFamily) {
 // Verify it's possible to change prefix_extractor at runtime and iterators
 // behaves as expected
 TEST_F(DBBloomFilterTest, DynamicBloomFilterOptions) {
-  int iteration = 0;
   for (bool use_block_based_builder : {true, false}) {
     Options options;
     options.create_if_missing = true;
@@ -1721,7 +1720,6 @@ TEST_F(DBBloomFilterTest, DynamicBloomFilterOptions) {
     ASSERT_EQ(CountIter(iter_old, "abc"), 0);
     ASSERT_EQ(TestGetTickerCount(options, BLOOM_FILTER_PREFIX_CHECKED), 12);
     ASSERT_EQ(TestGetTickerCount(options, BLOOM_FILTER_PREFIX_USEFUL), 3);
-    iteration++;
   }
 }
 
