@@ -1504,7 +1504,7 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     if (wotr_ == nullptr) {
       std::cout << "No wotr! Thirsty!" << std::endl;
     }
-    if (wotr_->WotrGet(offset, &data, &len, 0) < 0) {
+    if (wotr_->WotrGet(offset, &data, &len) < 0) {
       return Status::IOError("GetExternal error reading from logfile.");
     }
 
@@ -1545,7 +1545,7 @@ Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     if (wotr_ == nullptr) {
       std::cout << "No wotr! Thirsty!" << std::endl;
     }
-    if (wotr_->WotrPGet(offset, len, &data) < 0) {
+    if (wotr_->WotrPGet(offset, &data, len) < 0) {
       return Status::IOError("GetPExternal error reading from logfile.");
     }
 

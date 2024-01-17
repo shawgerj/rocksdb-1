@@ -127,10 +127,8 @@ class TraceAnalyzerTest : public testing::Test {
     std::istringstream iss;
     bool has_data = true;
     std::vector<std::string> result;
-    uint32_t count;
     Status s;
-    for (count = 0; ReadOneLine(&iss, f_ptr.get(), &get_line, &has_data, &s);
-         ++count) {
+    while(ReadOneLine(&iss, f_ptr.get(), &get_line, &has_data, &s)) {
       ASSERT_OK(s);
       result.push_back(get_line);
     }
