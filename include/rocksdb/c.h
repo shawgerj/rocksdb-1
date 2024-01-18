@@ -144,7 +144,7 @@ extern ROCKSDB_LIBRARY_API rocksdb_t* rocksdb_open_as_secondary(
     const char* secondary_path, char** errptr);
 
 extern ROCKSDB_LIBRARY_API void rocksdb_set_wotr(
-    rocksdb_t* db, wotr_t* w);
+    rocksdb_t* db, wotr_t* w, unsigned char recovery, char** errptr);
 
 extern ROCKSDB_LIBRARY_API void rocksdb_resume(rocksdb_t* db, char** errptr);
 

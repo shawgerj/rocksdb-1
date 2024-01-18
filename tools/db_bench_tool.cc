@@ -4053,7 +4053,7 @@ class Benchmark {
       if (use_wotr_) {
           std::string logfile = "/nobackup/vlog.txt";
           auto wotr = std::make_shared<Wotr>(logfile.c_str());
-          db->db->SetWotr(wotr.get());
+          db->db->SetWotr(wotr.get(), false);
       }
 }
     if (!s.ok()) {

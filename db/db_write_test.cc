@@ -32,7 +32,7 @@ class DBWriteTest : public DBTestBase, public testing::WithParamInterface<int> {
 TEST_P(DBWriteTest, InitAndRegisterWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
   w->CloseAndDestroy();
 }
 
@@ -58,7 +58,7 @@ void buildLocator(std::string* loc, size_t offset, size_t klen, size_t vlen) {
 TEST_P(DBWriteTest, SingleWriteWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
   std::vector<size_t> offsets;
   WriteBatch batch;
@@ -92,7 +92,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   int num_writes = 4;
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
   std::vector<std::string> keys;
   std::vector<std::string> values;
@@ -162,7 +162,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
 TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
 //  std::vector<size_t> offsets;
   WriteBatch batch;
@@ -201,7 +201,7 @@ TEST_P(DBWriteTest, MultiBatchWOTR) {
   Reopen(options);
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
   
   WriteOptions opt;
@@ -248,7 +248,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   Reopen(options);
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
   
   std::vector<port::Thread> threads;
   // we don't know how the writes will be grouped. So count offsets generated
@@ -313,7 +313,7 @@ TEST_P(DBWriteTest, WotrRecoverNoFlush) {
 
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
   WriteOptions writeOpt = WriteOptions();
   writeOpt.disableWAL = true;
@@ -326,7 +326,7 @@ TEST_P(DBWriteTest, WotrRecoverNoFlush) {
   ASSERT_OK(dbfull()->Write(writeOpt, &batch, &offsets));
 
   ReopenWithColumnFamilies({"default", "pikachu"}, options);
-  ASSERT_OK(dbfull()->SetWotr(w.get()));
+  ASSERT_OK(dbfull()->SetWotr(w.get(), false));
   ssize_t wotr_head = w.get()->Head();
   std::cout << "wotr head is " << wotr_head << std::endl;
   
@@ -350,7 +350,7 @@ TEST_P(DBWriteTest, WotrRecoverNoFlush) {
     
       std::string logfile = "/tmp/wotrlog.txt";
       auto w = std::make_shared<Wotr>(logfile.c_str());
-      ASSERT_OK(dbfull()->SetWotr(w.get()));
+      ASSERT_OK(dbfull()->SetWotr(w.get(), false));
 
       WriteOptions writeOpt = WriteOptions();
       writeOpt.disableWAL = true;
@@ -363,7 +363,7 @@ TEST_P(DBWriteTest, WotrRecoverNoFlush) {
       ASSERT_OK(dbfull()->Write(writeOpt, &batch, &offsets));
 
       ReopenWithColumnFamilies({"default", "pikachu"}, options);
-      ASSERT_OK(dbfull()->SetWotr(w.get()));
+      ASSERT_OK(dbfull()->SetWotr(w.get(), false));
       ssize_t wotr_head = w.get()->Head();
       std::cout << "wotr head is " << wotr_head << std::endl;
       ReadOptions readOpt;
