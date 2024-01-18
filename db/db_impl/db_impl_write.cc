@@ -1325,7 +1325,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
     char v_type = iter->GetValueType();
     if (v_type == kTypeValue || v_type == kTypeColumnFamilyValue) {
-      offsets[i] = (size_t)loc;
+      offsets[i] += (size_t)loc;
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
                               iter->Key(), std::to_string(offsets[i]));
       i++;
