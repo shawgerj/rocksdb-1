@@ -426,6 +426,12 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
       for (auto cfd : *versions_->GetColumnFamilySet()) {
         if (!cfd->IsDropped() && cfd->initialized() && !cfd->mem()->IsEmpty()) {
           cfd->Ref();
+	  if (wotr_ != nullptr) {
+	    Slice wotr_ptr_key = Slice("wotr_ptr");
+	    Slice wotr_ptr = Slice(std::to_string(wotr_->Head()));
+	    cfd->mem()->Add(versions_->LastSequence(), kTypeValue, wotr_ptr_key, wotr_ptr);
+	  }
+
           mutex_.Unlock();
           FlushMemTable(cfd, FlushOptions(), FlushReason::kShutDown);
           mutex_.Lock();
