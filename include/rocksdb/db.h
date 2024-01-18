@@ -227,7 +227,7 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
-  virtual Status SetWotr(Wotr* wotr) { return Status::NotSupported(); }
+  virtual Status SetWotr(Wotr* wotr, bool recover) { return Status::NotSupported(); }
 
   virtual Status Resume() { return Status::NotSupported(); }
 

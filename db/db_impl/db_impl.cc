@@ -263,10 +263,19 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   preserve_deletes_seqnum_.store(0);
 }
 
-Status DBImpl::SetWotr(Wotr* wotr) {
-    wotr_ = wotr;
-    wotr_->Register(GetName());
-    return Status::OK();
+Status DBImpl::SetWotr(Wotr* wotr, bool recover) {
+  wotr_ = wotr;
+  wotr_->Register(GetName());
+  
+  // SetWotr always called after db is fully started. We can recover any
+  // data from wotr that might have been lost due to not using the WAL.
+  // This is optional, because a "secondary" LSM tree might be using wotr
+  // and it should wait for the application to initiate a recovery process
+  // instead of reading the log directly.
+  if (recover) {
+    std::cout << "trying to recover... (unimplemented)" << std::endl;
+  }
+  return Status::OK();
 }
 
 Status DBImpl::Resume() {
