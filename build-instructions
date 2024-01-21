@@ -1,0 +1,10 @@
+For dedup project, build with
+
+mkdir build
+cd build
+cmake .. -DWITH_WOTR=On
+make -j<n>
+
+To build with tests
+
+cmake .. -DWITH_WOTR=On -DCMAKE_BUILD_TYPE=Debug

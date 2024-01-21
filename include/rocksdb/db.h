@@ -25,7 +25,10 @@
 #include "rocksdb/transaction_log.h"
 #include "rocksdb/types.h"
 #include "rocksdb/version.h"
+
+#ifdef WITH_WOTR
 #include "wotr.h"
+#endif
 
 #ifdef _WIN32
 // Windows API macro interference
@@ -227,7 +230,9 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
-  virtual Status SetWotr(Wotr* wotr, bool recover) { return Status::NotSupported(); }
+  #ifdef WITH_WOTR
+  virtual Status SetExternal(void* wotr, bool recover) { return Status::NotSupported(); }
+  #endif
 
   virtual Status Resume() { return Status::NotSupported(); }
 

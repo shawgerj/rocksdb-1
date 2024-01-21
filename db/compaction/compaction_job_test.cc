@@ -134,8 +134,10 @@ class CompactionJobTest : public testing::Test {
     }
 
     uint64_t file_number = versions_->NewFileNumber();
+    // EXPECT_OK(mock_table_factory_->CreateMockTable(
+    //     env_, GenerateFileName(file_number), std::move(contents)));
     EXPECT_OK(mock_table_factory_->CreateMockTable(
-        env_, GenerateFileName(file_number), std::move(contents)));
+        env_, GenerateFileName(file_number), contents));
 
     VersionEdit edit;
     edit.AddFile(level, file_number, 0, 10, smallest_key, largest_key,
