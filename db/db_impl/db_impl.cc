@@ -271,7 +271,6 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
   // the external storage could be anything... but we have implemented
   // WOTR, a shared log
   wotr_ = (Wotr*)storage;
-  wotr_->Register(GetName());
   
   // SetExternal always called after db is fully started. We can recover
   // any data from wotr that might have been lost due to not using the WAL.
@@ -280,12 +279,37 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
   // instead of reading the log directly.
   if (recover) {
     std::cout << "rocksdb: trying to recover... " << std::endl;
+    size_t offset;
     PinnableSlice val;
     ReadOptions options;
     GetImpl(options, DefaultColumnFamily(), "wotr_ptr", &val);
-      
-    if (wotr_->StartupRecovery(GetName(), std::stol(val.data())) < 0) {
-      std::cout << "Wotr start recovery error" << std::endl;
+
+    offset = val.empty() ? 0 : std::stol(val.data());
+
+    struct kv_entry_info entry;
+    char* key;
+    while (wotr_->get_entry(offset, &entry) != -1) {
+      if (wotr_->WotrPGet(entry.key_offset, &key, entry.ksize) < 0) {
+        std::cout << "startup_recovery: bad read key" << std::endl;
+        free(key);
+        return Status::IOError();
+      }
+
+      // to_string?
+      std::string keystr = std::string(key, entry.ksize);
+      WriteOptions wopts = WriteOptions();
+      wopts.disableWAL = true;
+      std::cout << "put key: " << keystr << " value: " << std::to_string(entry.value_offset) << std::endl;
+      Status s = Put(wopts, keystr, std::to_string(offset));
+
+      if (!s.ok()) {
+        std::cout << "startup_recovery: db put error" << std::endl;
+        free(key);
+        return Status::IOError();
+      }
+    
+      offset += entry.size;
+      free(key);
     }
   }
   return Status::OK();
