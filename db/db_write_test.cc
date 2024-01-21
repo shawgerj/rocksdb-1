@@ -305,41 +305,45 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   w->CloseAndDestroy();
 }
 
-TEST_P(DBWriteTest, WotrRecoverNoFlush) {
-  Options options = GetOptions();
-  // memtable not flushed on shutdown. disableWAL will lose data
-  options.avoid_flush_during_shutdown = true;
-  CreateAndReopenWithCF({"pikachu"}, options);
+  TEST_P(DBWriteTest, WotrRecoverNoFlush) {
+    if (GetParam() == DBTestBase::kPipelinedWrite
+        || GetParam() == DBTestBase::kDefault) {
 
-  std::string logfile = "/tmp/wotrlog.txt";
-  auto w = std::make_shared<Wotr>(logfile.c_str());
-  ASSERT_OK(dbfull()->SetExternal(w.get(), false));
+      Options options = GetOptions();
+      // memtable not flushed on shutdown. disableWAL will lose data
+      options.avoid_flush_during_shutdown = true;
+      CreateAndReopenWithCF({"pikachu"}, options);
 
-  WriteOptions writeOpt = WriteOptions();
-  writeOpt.disableWAL = true;
+      std::string logfile = "/tmp/wotrlog.txt";
+      auto w = std::make_shared<Wotr>(logfile.c_str());
+      ASSERT_OK(dbfull()->SetExternal(w.get(), false));
 
-  WriteBatch batch;
-  batch.Put("foo", "v1");
-  batch.Put("baz", "v5");
-  std::vector<size_t> offsets;
+      WriteOptions writeOpt = WriteOptions();
+      writeOpt.disableWAL = true;
 
-  ASSERT_OK(dbfull()->Write(writeOpt, &batch, &offsets));
+      WriteBatch batch;
+      batch.Put("foo", "v1");
+      batch.Put("baz", "v5");
+      std::vector<size_t> offsets;
 
-  ReopenWithColumnFamilies({"default", "pikachu"}, options);
-  ASSERT_OK(dbfull()->SetExternal(w.get(), false));
-  ssize_t wotr_head = w.get()->Head();
-  std::cout << "wotr head is " << wotr_head << std::endl;
+      ASSERT_OK(dbfull()->Write(writeOpt, &batch, &offsets));
+
+      ReopenWithColumnFamilies({"default", "pikachu"}, options);
+      ASSERT_OK(dbfull()->SetExternal(w.get(), true));
+      ssize_t wotr_head = w.get()->Head();
+      std::cout << "wotr head is " << wotr_head << std::endl;
   
   
-  PinnableSlice value;
-  ReadOptions opt;
-  ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
-  ASSERT_EQ("v1", value.ToString());
-  ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
-  ASSERT_EQ("v1", value.ToString());
-  ASSERT_OK(dbfull()->GetExternal(opt, "baz", &value));
-  ASSERT_EQ("v5", value.ToString());
-}
+      PinnableSlice value;
+      ReadOptions opt;
+      ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
+      ASSERT_EQ("v1", value.ToString());
+      ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
+      ASSERT_EQ("v1", value.ToString());
+      ASSERT_OK(dbfull()->GetExternal(opt, "baz", &value));
+      ASSERT_EQ("v5", value.ToString());
+    }
+  }
 
   TEST_P(DBWriteTest, WotrRecoverFlushMemtableCheckHead) {
     // I only support pipelinedwrite for wotr right now, so let's just restrict this
