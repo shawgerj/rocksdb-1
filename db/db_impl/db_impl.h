@@ -133,8 +133,8 @@ class DBImpl : public DB {
 
   // ---- Implementations of the DB interface ----
 
-  using DB::SetWotr;
-  virtual Status SetWotr(Wotr* wotr, bool recover) override;
+  using DB::SetExternal;
+  virtual Status SetExternal(void* wotr, bool recover) override;
 
   using DB::Resume;
   virtual Status Resume() override;

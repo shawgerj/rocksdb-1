@@ -539,11 +539,11 @@ rocksdb_t* rocksdb_open_as_secondary(const rocksdb_options_t* options,
   return result;
 }
 
-void rocksdb_set_wotr(rocksdb_t* db,
-		      wotr_t* w,
-		      unsigned char recover,
-		      char** errptr) {
-  db->rep->SetWotr(w->rep, recover);
+void rocksdb_set_external(rocksdb_t* db,
+                          wotr_t* w,
+                          unsigned char recover,
+                          char** errptr) {
+  db->rep->SetExternal((void*)w->rep, recover);
 }
 
 void rocksdb_resume(rocksdb_t* db, char** errptr) {

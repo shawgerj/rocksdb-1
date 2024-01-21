@@ -263,17 +263,30 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   preserve_deletes_seqnum_.store(0);
 }
 
-Status DBImpl::SetWotr(Wotr* wotr, bool recover) {
-  wotr_ = wotr;
+Status DBImpl::SetExternal(void* storage, bool recover) {
+  if (storage == nullptr) {
+    return Status::IOError("Wotr NULL");
+  }
+
+  // the external storage could be anything... but we have implemented
+  // WOTR, a shared log
+  wotr_ = (Wotr*)storage;
   wotr_->Register(GetName());
   
-  // SetWotr always called after db is fully started. We can recover any
-  // data from wotr that might have been lost due to not using the WAL.
+  // SetExternal always called after db is fully started. We can recover
+  // any data from wotr that might have been lost due to not using the WAL.
   // This is optional, because a "secondary" LSM tree might be using wotr
   // and it should wait for the application to initiate a recovery process
   // instead of reading the log directly.
   if (recover) {
-    std::cout << "trying to recover... (unimplemented)" << std::endl;
+    std::cout << "rocksdb: trying to recover... " << std::endl;
+    PinnableSlice val;
+    ReadOptions options;
+    GetImpl(options, DefaultColumnFamily(), "wotr_ptr", &val);
+      
+    if (wotr_->StartupRecovery(GetName(), std::stol(val.data())) < 0) {
+      std::cout << "Wotr start recovery error" << std::endl;
+    }
   }
   return Status::OK();
 }
