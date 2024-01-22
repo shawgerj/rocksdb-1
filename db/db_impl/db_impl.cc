@@ -284,31 +284,26 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
     ReadOptions options;
     GetImpl(options, DefaultColumnFamily(), "wotr_ptr", &val);
 
+    
     offset = val.empty() ? 0 : std::stol(val.data());
 
     struct kv_entry_info entry;
-    char* key;
-    while (wotr_->get_entry(offset, &entry) != -1) {
-      if (wotr_->WotrPGet(entry.key_offset, &key, entry.ksize) < 0) {
-        std::cout << "startup_recovery: bad read key" << std::endl;
-        free(key);
-        return Status::IOError();
-      }
+    WotrIter witer(*wotr_);
 
-      // to_string?
+    for (witer.set_offset(offset); witer.read(&entry) != -1; witer.next()) {
+      char* key = witer.read_key();
       std::string keystr = std::string(key, entry.ksize);
+
       WriteOptions wopts = WriteOptions();
       wopts.disableWAL = true;
       std::cout << "put key: " << keystr << " value: " << std::to_string(entry.value_offset) << std::endl;
-      Status s = Put(wopts, keystr, std::to_string(offset));
+      Status s = Put(wopts, keystr, std::to_string(entry.offset));
 
       if (!s.ok()) {
         std::cout << "startup_recovery: db put error" << std::endl;
         free(key);
         return Status::IOError();
       }
-    
-      offset += entry.size;
       free(key);
     }
   }
