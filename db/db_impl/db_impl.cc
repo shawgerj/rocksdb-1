@@ -286,6 +286,7 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
 
     
     offset = val.empty() ? 0 : std::stol(val.data());
+    std::cout << "recovered head was: " << offset << std::endl;
 
     struct kv_entry_info entry;
     WotrIter witer(*wotr_);
