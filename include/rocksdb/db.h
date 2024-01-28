@@ -230,9 +230,7 @@ class DB {
                      const std::vector<ColumnFamilyDescriptor>& column_families,
                      std::vector<ColumnFamilyHandle*>* handles, DB** dbptr);
 
-  #ifdef WITH_WOTR
   virtual Status SetExternal(void* wotr, bool recover) { return Status::NotSupported(); }
-  #endif
 
   virtual Status Resume() { return Status::NotSupported(); }
 

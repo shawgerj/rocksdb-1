@@ -938,6 +938,8 @@ extern ROCKSDB_LIBRARY_API void rocksdb_options_set_arena_block_size(
     rocksdb_options_t*, size_t);
 extern ROCKSDB_LIBRARY_API void rocksdb_options_set_use_fsync(
     rocksdb_options_t*, int);
+extern ROCKSDB_LIBRARY_API void rocksdb_options_set_avoid_flush_during_shutdown(
+    rocksdb_options_t*, int);
 extern ROCKSDB_LIBRARY_API void rocksdb_options_set_db_log_dir(
     rocksdb_options_t*, const char*);
 extern ROCKSDB_LIBRARY_API void rocksdb_options_set_wal_dir(rocksdb_options_t*,

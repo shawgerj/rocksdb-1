@@ -278,12 +278,10 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
   // and it should wait for the application to initiate a recovery process
   // instead of reading the log directly.
   if (recover) {
-    std::cout << "rocksdb: trying to recover... " << std::endl;
     size_t offset;
     PinnableSlice val;
     ReadOptions options;
     GetImpl(options, DefaultColumnFamily(), "wotr_ptr", &val);
-
     
     offset = val.empty() ? 0 : std::stol(val.data());
 
@@ -296,11 +294,9 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
 
       WriteOptions wopts = WriteOptions();
       wopts.disableWAL = true;
-      std::cout << "put key: " << keystr << " value: " << std::to_string(entry.value_offset) << std::endl;
       Status s = Put(wopts, keystr, std::to_string(entry.offset));
 
       if (!s.ok()) {
-        std::cout << "startup_recovery: db put error" << std::endl;
         free(key);
         return Status::IOError();
       }

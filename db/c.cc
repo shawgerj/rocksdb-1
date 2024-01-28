@@ -2468,6 +2468,11 @@ void rocksdb_options_set_use_fsync(
   opt->rep.use_fsync = use_fsync;
 }
 
+void rocksdb_options_set_avoid_flush_during_shutdown(
+    rocksdb_options_t* opt, int avoid_flush) {
+  opt->rep.avoid_flush_during_shutdown = avoid_flush;
+}
+
 void rocksdb_options_set_db_log_dir(
     rocksdb_options_t* opt, const char* db_log_dir) {
   opt->rep.db_log_dir = db_log_dir;
