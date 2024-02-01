@@ -1570,6 +1570,10 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     return s;
 }
 
+static void cleanup_wotr_buf(void* arg1, void* /* arg2 */) {
+  free(arg1);
+}
+
 Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
 //    size_t len;
@@ -1592,11 +1596,13 @@ Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
       return Status::IOError("GetPExternal error reading from logfile.");
     }
 
-    value->GetSelf()->assign(data, len);
-    value->PinSelf();
+    Slice s(data, len);
+    value->PinSlice(s, &cleanup_wotr_buf, data, nullptr);
+//    value->GetSelf()->assign(data, len);
+//    value->PinSelf();
     return Status::OK();
 }
-  
+
 Status DBImpl::GetPExternal(const ReadOptions& options,
                             ColumnFamilyHandle* column_family, const Slice& key,
                             PinnableSlice* value) {
