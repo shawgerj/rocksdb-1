@@ -5,7 +5,6 @@
 //
 #pragma once
 #include "rocksdb/statistics.h"
-#include <iostream>
 
 #include <atomic>
 #include <map>
@@ -213,7 +212,7 @@ void StatisticsImpl<TICKER_MAX, HISTOGRAM_MAX>::recordTick(uint32_t tickerType,
 template <uint32_t TICKER_MAX, uint32_t HISTOGRAM_MAX>
 void StatisticsImpl<TICKER_MAX, HISTOGRAM_MAX>::recordInHistogram(
     uint32_t histogramType, uint64_t value) {
-  std::cout << "MAX: " << HISTOGRAM_MAX << "histogramType: " << histogramType << std::endl;
+
   assert(histogramType < HISTOGRAM_MAX);
   if (get_stats_level() <= StatsLevel::kExceptHistogramOrTimers) {
     return;
