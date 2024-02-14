@@ -117,10 +117,10 @@ class InternalStats {
     kIntStatsWriteDoneBySelf,
     kIntStatsWriteWithWal,
     kIntStatsWriteStallMicros,
-    kIntStatsNumMax,
     kIntStatsWriteWithWotr,
     kIntStatsWotrFileBytes,
     kIntStatsWotrFileSynced,
+    kIntStatsNumMax,
   };
 
   InternalStats(int num_levels, Env* env, ColumnFamilyData* cfd)
