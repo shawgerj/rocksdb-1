@@ -354,7 +354,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     std::vector<WriteBatch*> updates(1);
     updates[0] = my_batch;
     return MultiBatchWriteImpl(write_options, std::move(updates), callback,
-                               log_used, log_ref, seq_used);
+                               log_used, log_ref, seq_used, offsets);
   }
 
   if (immutable_db_options_.enable_pipelined_write) {
