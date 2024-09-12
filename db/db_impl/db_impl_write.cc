@@ -1293,13 +1293,28 @@ Status DBImpl::WriteToWAL(const WriteThread::WriteGroup& write_group,
 std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
                                                         WriteBatch* new_batch,
                                                         bool need_log_sync) {
+  // for WOTR stats
+  size_t batchsz;
+  uint64_t prepare_wotr_micros;
+  uint64_t write_wotr_micros;
+  uint64_t gen_new_batch_micros;
+  uint64_t starttime;
+  
   std::string data;
   std::vector<size_t> offsets;
+
+  batchsz = batch->GetDataSize();
+  
   // generate data to be written to wotr - store in "data"
+  starttime = env_->NowMicros();
   batch->PrepareWotr(&offsets, &data);
+  prepare_wotr_micros = env_->NowMicros() - starttime;
   
   // write to wotr, it gives us the offset in the log
+  starttime = env_->NowMicros();
   ssize_t loc = wotr_->WotrWrite(data);
+  write_wotr_micros = env_->NowMicros() - starttime;
+  
   if (loc < 0) {
     std::cout << "rocksdb: bad wotr write" << std::endl;
     return offsets; // it'll just be empty, I guess
@@ -1318,7 +1333,8 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
   }
   stats->AddDBStats(InternalStats::kIntStatsWotrFileBytes, data.size());
   RecordTick(stats_, WOTR_FILE_BYTES, data.size());
-  
+
+  starttime = env_->NowMicros();
   WriteBatch::Iterator* iter = batch->NewIterator();
       
   int i = 0;
@@ -1334,6 +1350,11 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
                                  iter->Key());
     }
   }
+  gen_new_batch_micros = env_->NowMicros() - starttime;
+
+  std::cout << "BATCH_SZ:\t" << batchsz << "\tPREPARE:\t" << prepare_wotr_micros
+            << "\tWRITE:\t" << write_wotr_micros << "\tGENERATE:\t"
+            << gen_new_batch_micros << std::endl;
   
   return offsets;
 }
@@ -1347,6 +1368,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   (void)need_log_dir_sync;
   Status status;
   std::vector<size_t> new_offsets;
+
+  size_t wg_size = write_group.size;
 
   size_t write_with_wotr = 0;
   size_t total_byte_size = 0;
@@ -1385,6 +1408,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
   RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
 
+  std::cout << "GROUP_SIZE\t" << wg_size << std::endl;
   return Status::OK();
 }
 
