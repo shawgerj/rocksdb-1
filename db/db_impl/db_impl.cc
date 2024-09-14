@@ -287,21 +287,30 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
 
     struct kv_entry_info entry;
     WotrIter witer(*wotr_);
+    WriteBatch batch;
+
+    std::vector<std::string> cfs;
+    ListColumnFamilies(initial_db_options_, dbname_, &cfs);
+    uint32_t numcfs = cfs.size();
 
     for (witer.set_offset(offset); witer.read(&entry) != -1; witer.next()) {
       char* key = witer.read_key();
       std::string keystr = std::string(key, entry.ksize);
-
-      WriteOptions wopts = WriteOptions();
-      wopts.disableWAL = true;
-      Status s = Put(wopts, keystr, std::to_string(entry.offset));
-
-      if (!s.ok()) {
-        free(key);
-        return Status::IOError();
+      uint32_t cfid = witer.GetCfID();
+      if (cfid < numcfs) {
+	Status s = WriteBatchInternal::Put(&batch, cfid, keystr, std::to_string(entry.offset));
+	if (!s.ok()) {
+	  free(key);
+	  return s;
+	}
       }
       free(key);
     }
+    WriteOptions opt = WriteOptions();
+    opt.disableWAL = true;
+      
+    Status s = Write(opt, &batch);
+    return s;
   }
   return Status::OK();
 }
