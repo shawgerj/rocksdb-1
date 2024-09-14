@@ -190,6 +190,46 @@ TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
   w->CloseAndDestroy();
 }
 
+TEST_P(DBWriteTest, DeleteAfterWriteWithWOTR) {
+  std::string logfile = "/tmp/wotrlog.txt";
+  auto w = std::make_shared<Wotr>(logfile.c_str());
+  ASSERT_OK(dbfull()->SetExternal(w.get(), false));
+
+//  std::vector<size_t> offsets;
+  WriteBatch batch;
+  batch.Put("key1", "value1");
+  batch.Put("key2", "value2");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch));
+
+  std::string value;
+  ReadOptions ropt;
+  ASSERT_OK(dbfull()->Get(ropt, "key1", &value));
+  ASSERT_OK(dbfull()->Get(ropt, "key2", &value));
+
+  WriteBatch batch2;
+  std::vector<size_t> offsets;
+  batch2.Put("key3", "value3");
+  batch2.Put("key4", "value4");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
+  ASSERT_OK(dbfull()->Get(ropt, "key3", &value));
+  ASSERT_OK(dbfull()->Get(ropt, "key4", &value));
+
+  WriteBatch batch3;
+  batch3.Delete("key3");
+  ASSERT_OK(dbfull()->Write(WriteOptions(), &batch3, &offsets));
+  ASSERT_OK(dbfull()->Delete(WriteOptions(), "key4"));
+
+  PinnableSlice pvalue;
+  std::string svalue;
+  ReadOptions ropt2;
+  ASSERT_TRUE(dbfull()->Get(ropt2, "key3", &svalue).IsNotFound());  
+  ASSERT_TRUE(dbfull()->GetExternal(ropt2, "key3", &pvalue).IsNotFound());
+  ASSERT_TRUE(dbfull()->Get(ropt2, "key4", &svalue).IsNotFound());  
+  ASSERT_TRUE(dbfull()->GetExternal(ropt2, "key4", &pvalue).IsNotFound());
+
+  w->CloseAndDestroy();
+}
+
 TEST_P(DBWriteTest, MultiBatchWOTR) {
   Options options = GetOptions();
   if (!options.enable_multi_thread_write) {
@@ -312,7 +352,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
       Options options = GetOptions();
       // memtable not flushed on shutdown. disableWAL will lose data
       options.avoid_flush_during_shutdown = true;
-      CreateAndReopenWithCF({"pikachu"}, options);
+      CreateAndReopenWithCF({"one", "two"}, options);
 
       std::string logfile = "/tmp/wotrlog.txt";
       auto w = std::make_shared<Wotr>(logfile.c_str());
@@ -322,13 +362,13 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
       writeOpt.disableWAL = true;
 
       WriteBatch batch;
-      batch.Put("foo", "v1");
-      batch.Put("baz", "v5");
+      batch.Put(handles_[1], "foo", "v1");
+      batch.Put(handles_[2], "baz", "v5");
       std::vector<size_t> offsets;
 
       ASSERT_OK(dbfull()->Write(writeOpt, &batch, &offsets));
 
-      ReopenWithColumnFamilies({"default", "pikachu"}, options);
+      ReopenWithColumnFamilies({"default", "one", "two"}, options);
       ASSERT_OK(dbfull()->SetExternal(w.get(), true));
       ssize_t wotr_head = w.get()->Head();
       std::cout << "wotr head is " << wotr_head << std::endl;
@@ -336,11 +376,11 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   
       PinnableSlice value;
       ReadOptions opt;
-      ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
+      ASSERT_OK(dbfull()->GetExternal(opt, handles_[1], "foo", &value));
       ASSERT_EQ("v1", value.ToString());
-      ASSERT_OK(dbfull()->GetExternal(opt, "foo", &value));
+      ASSERT_OK(dbfull()->GetExternal(opt, handles_[1], "foo", &value));
       ASSERT_EQ("v1", value.ToString());
-      ASSERT_OK(dbfull()->GetExternal(opt, "baz", &value));
+      ASSERT_OK(dbfull()->GetExternal(opt, handles_[2], "baz", &value));
       ASSERT_EQ("v5", value.ToString());
     }
   }
