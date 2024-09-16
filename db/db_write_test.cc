@@ -414,7 +414,9 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
       std::string v;
       // I insert wotr head pointer before memtable is flushed on shutdown
       ASSERT_OK(dbfull()->Get(readOpt, "wotr_ptr", &v));
-      ASSERT_EQ(std::to_string(wotr_head), v);
+      size_t found_offset;
+      memcpy(&found_offset, v.data(), v.size());
+      ASSERT_EQ(wotr_head, found_offset);
 
       // these should pass since the memtable was flushed
       PinnableSlice value;

@@ -298,7 +298,8 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
       std::string keystr = std::string(key, entry.ksize);
       uint32_t cfid = witer.GetCfID();
       if (cfid < numcfs) {
-	Status s = WriteBatchInternal::Put(&batch, cfid, keystr, std::to_string(entry.offset));
+	std::string entry_offset(reinterpret_cast<const char*>(&(entry.offset)), sizeof(size_t));
+	Status s = WriteBatchInternal::Put(&batch, cfid, keystr, entry_offset);
 	if (!s.ok()) {
 	  free(key);
 	  return s;
@@ -474,8 +475,9 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
           cfd->Ref();
 	  if (wotr_ != nullptr) {
 	    Slice wotr_ptr_key = Slice("wotr_ptr");
-	    Slice wotr_ptr = Slice(std::to_string(wotr_->Head()));
-	    cfd->mem()->Add(versions_->LastSequence(), kTypeValue, wotr_ptr_key, wotr_ptr);
+	    size_t wotrhead = wotr_->Head();
+	    std::string head_string(reinterpret_cast<const char*>(&wotrhead), sizeof(size_t));
+	    cfd->mem()->Add(versions_->LastSequence(), kTypeValue, wotr_ptr_key, head_string);
 	  }
 
           mutex_.Unlock();
@@ -1552,7 +1554,8 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     if (loc.empty()) {
       std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
     }
-    size_t offset = std::stol(loc.data());
+    size_t offset;
+    memcpy(&offset, loc.data(), loc.size());
     if (wotr_ == nullptr) {
       std::cout << "No wotr! Thirsty!" << std::endl;
     }
