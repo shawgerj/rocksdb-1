@@ -65,6 +65,7 @@ endif()
 
 if(WITH_WOTR)
   add_definitions(-DWITH_WOTR)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/wotr)
 endif()
 
 if(MSVC)
