@@ -548,6 +548,16 @@ class DB {
   virtual Iterator* NewIterator(const ReadOptions& options) {
     return NewIterator(options, DefaultColumnFamily());
   }
+
+  // shawgerj iterator which reads from wotr
+  // right now it uses GetPExternal all the time
+  // might need to change that behavior... 
+  virtual Iterator* NewWotrIterator(const ReadOptions& options,
+                                ColumnFamilyHandle* column_family) = 0;
+  virtual Iterator* NewWotrIterator(const ReadOptions& options) {
+    return NewWotrIterator(options, DefaultColumnFamily());
+  }
+
   // Returns iterators from a consistent database state across multiple
   // column families. Iterators are heap allocated and need to be deleted
   // before the db is deleted

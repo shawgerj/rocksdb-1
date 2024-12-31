@@ -532,6 +532,7 @@ set(SOURCES
         db/db_impl/db_impl_secondary.cc
         db/db_info_dumper.cc
         db/db_iter.cc
+	db/wotr_iter.cc
         db/dbformat.cc
         db/error_handler.cc
         db/event_helpers.cc

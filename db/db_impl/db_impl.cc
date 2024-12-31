@@ -2417,6 +2417,18 @@ bool DBImpl::KeyMayExist(const ReadOptions& read_options,
   return s.ok() || s.IsIncomplete();
 }
 
+Iterator* DBImpl::NewWotrIterator(const ReadOptions& read_options,
+				      ColumnFamilyHandle* column_family) {
+  if (wotr_ == nullptr) {
+    return nullptr;
+  }
+
+  Iterator* dbiter = NewIterator(read_options, column_family);
+
+  Iterator* wotr_iter = NewWotrDBIterator(dbiter, wotr_);
+  return wotr_iter;
+}
+  
 Iterator* DBImpl::NewIterator(const ReadOptions& read_options,
                               ColumnFamilyHandle* column_family) {
   if (read_options.managed) {

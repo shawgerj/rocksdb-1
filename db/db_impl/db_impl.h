@@ -249,6 +249,9 @@ class DBImpl : public DB {
   using DB::NewIterator;
   virtual Iterator* NewIterator(const ReadOptions& options,
                                 ColumnFamilyHandle* column_family) override;
+  using DB::NewWotrIterator;
+  virtual Iterator* NewWotrIterator(const ReadOptions& options,
+				    ColumnFamilyHandle* column_family) override;
   virtual Status NewIterators(
       const ReadOptions& options,
       const std::vector<ColumnFamilyHandle*>& column_families,
