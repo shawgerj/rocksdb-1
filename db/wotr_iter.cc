@@ -7,7 +7,12 @@
 #define WOTR_ITER_CACHE_SIZE (16 * 1024 * 1024)
 
 namespace rocksdb {
-
+  namespace {
+      void deleter(const Slice& /*key*/, void* value) {
+	free(reinterpret_cast<char*>(value));
+      }
+  }
+    
 class WotrDBIter final: public Iterator {
 public:
   WotrDBIter(Iterator* dbiter, Wotr* wotr)
@@ -26,36 +31,42 @@ public:
   }
   
   void SeekToFirst() override {
+    cache_->Release(curr_item_, false);
     dbiter_->SeekToFirst();
     sequential_ = 0;
     load_data();
   }
   
   void SeekToLast() override {
+    cache_->Release(curr_item_, false);
     dbiter_->SeekToLast();
     sequential_ = 0;
     load_data();
   }
 
   void Seek(const Slice& target) override {
+    cache_->Release(curr_item_, false);
     dbiter_->Seek(target);
     sequential_ = 0;
     load_data();
   }
 
   void SeekForPrev(const Slice& target) override {
+    cache_->Release(curr_item_, false);
     dbiter_->SeekForPrev(target);
     sequential_ = 0;
     load_data();
   }
 
   void Next() override {
+    cache_->Release(curr_item_, false);
     dbiter_->Next();
     sequential_ += 1;
     load_data();
   }
 
   void Prev() override {
+    cache_->Release(curr_item_, false);
     dbiter_->Prev();
     sequential_ += 1;
     load_data();
@@ -66,7 +77,7 @@ public:
   }
 
   Slice value() const override {
-    return Decode(cache_->Value(curr_item_));
+    return Slice(Decode(cache_->Value(curr_item_)), cache_->GetCharge(curr_item_));
   }
 
   Status status() const override {
@@ -84,19 +95,20 @@ private:
   std::shared_ptr<Cache> cache_;
   bool valid_;
   size_t sequential_;
-  Cache::Handle curr_item_;
+  Cache::Handle* curr_item_;
   Status s_;
 
-  static void* Encode(Slice s) {
-    return reinterpret_cast<void*>(s);
+  static void* Encode(char* d) {
+    return reinterpret_cast<void*>(d);
   }
 
-  static Slice Decode(void* v) {
-    return static_cast<int>(reinterpret_cast<Slice>(v));
+  static char* Decode(void* v) {
+    return reinterpret_cast<char*>(v);
   }
 
-  Status load_from_ref(Slice key, struct wotr_ref* ref, Cache::Handle** h) {
-    if ((*h = cache_->Lookup(key)) != nullptr) {
+
+  Status load_from_ref(Slice key, const struct wotr_ref* ref, Cache::Handle** h) {
+    if ((*h = cache_->Lookup(key)) != nullptr && cache_->Ref(*h)) {
       return Status::OK(); // maybe need to add a ref to h? otherwise no guarantee re. eviction
     }
     
@@ -105,15 +117,14 @@ private:
       return Status::IOError("get_from_ref error reading from logfile.");
     }
 
-    Slice s(data, ref->len);
-    cache_->Insert(key, Encode(s), ref->len, ..., &h); // need deleter fn
+    cache_->Insert(key, Encode(data), ref->len, &deleter, h); // need deleter fn
     return Status::OK();
   }
 
   void load_data() {
     Slice dbval = dbiter_->value();
     
-    struct wotr_ref* ref = reinterpret_cast<struct wotr_ref*>(dbval.data());
+    const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(dbval.data());
     Status s = load_from_ref(dbiter_->key(), ref, &curr_item_);
     valid_ = s_.ok() ? true : false;
     s_ = s;
