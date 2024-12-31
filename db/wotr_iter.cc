@@ -1,3 +1,4 @@
+#include "db/db_iter.h"
 #include "rocksdb/status.h"
 #include "rocksdb/cache.h"
 #include "cache/clock_cache.h"
@@ -7,31 +8,31 @@
 
 namespace rocksdb {
 
-class WotrIter : public Iterator {
+class WotrDBIter final: public Iterator {
 public:
-  // TODO constructor, deconstructor
-  WOTRIter(Iterator* dbiter, Wotr* wotr)
+  WotrDBIter(Iterator* dbiter, Wotr* wotr)
     : dbiter_(dbiter),
       wotr_(wotr),
       valid_(false),
       sequential_(0),
-      s_(Status::OK()),
-  {
+      s_(Status::OK()) {
     cache_ = NewClockCache(WOTR_ITER_CACHE_SIZE, 4);
   }
+
+  // TODO deconstructor
 
   bool Valid() const override {
     return valid_;
   }
   
   void SeekToFirst() override {
-    dbiter_.SeekToFirst();
+    dbiter_->SeekToFirst();
     sequential_ = 0;
     load_data();
   }
   
   void SeekToLast() override {
-    dbiter_.SeekToFirst();
+    dbiter_->SeekToLast();
     sequential_ = 0;
     load_data();
   }
@@ -65,7 +66,7 @@ public:
   }
 
   Slice value() const override {
-    return Decode(cache::Value(curr_item_));
+    return Decode(cache_->Value(curr_item_));
   }
 
   Status status() const override {
@@ -80,7 +81,7 @@ private:
   
   Iterator* dbiter_;
   Wotr* wotr_;
-  Cache* cache_;
+  std::shared_ptr<Cache> cache_;
   bool valid_;
   size_t sequential_;
   Cache::Handle curr_item_;
@@ -91,12 +92,12 @@ private:
   }
 
   static Slice Decode(void* v) {
-    return static_cast<int>(reinterpret_case<Slice>(v));
+    return static_cast<int>(reinterpret_cast<Slice>(v));
   }
 
   Status load_from_ref(Slice key, struct wotr_ref* ref, Cache::Handle** h) {
     if ((*h = cache_->Lookup(key)) != nullptr) {
-      return h; // maybe need to add a ref? otherwise no guarantee re. eviction
+      return Status::OK(); // maybe need to add a ref to h? otherwise no guarantee re. eviction
     }
     
     char* data;
@@ -119,8 +120,8 @@ private:
   }
 };
 
-  WotrIter* NewWotrDBIterator(Iterator* dbiter, Wotr* wotr) {
-    WotrIter* wotr_iter = new WotrIter(dbiter, wotr);
+  Iterator* NewWotrDBIterator(Iterator* dbiter, Wotr* wotr) {
+    WotrDBIter* wotr_iter = new WotrDBIter(dbiter, wotr);
     return wotr_iter;
   }
 } // namespace rocksdb

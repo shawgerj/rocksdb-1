@@ -2423,9 +2423,9 @@ Iterator* DBImpl::NewWotrIterator(const ReadOptions& read_options,
     return nullptr;
   }
 
-  Iterator* dbiter = NewIterator(readoptions, column_family);
+  Iterator* dbiter = NewIterator(read_options, column_family);
 
-  WotrIterator* wotr_iter = NewWotrDBIterator(dbiter, wotr_);
+  Iterator* wotr_iter = NewWotrDBIterator(dbiter, wotr_);
   return wotr_iter;
 }
   

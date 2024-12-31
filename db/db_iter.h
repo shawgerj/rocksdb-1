@@ -18,6 +18,7 @@
 #include "rocksdb/db.h"
 #include "rocksdb/iterator.h"
 #include "util/autovector.h"
+#include "wotr.h"
 
 namespace rocksdb {
 
@@ -48,6 +49,7 @@ namespace rocksdb {
 //
 class Arena;
 class DBIter;
+class WotrDBIter;
 
 // Return a new iterator that converts internal keys (yielded by
 // "*internal_iter") that were live at the specified `sequence` number
@@ -60,6 +62,8 @@ extern Iterator* NewDBIterator(
     const SequenceNumber& sequence, uint64_t max_sequential_skip_in_iterations,
     ReadCallback* read_callback, DBImpl* db_impl = nullptr,
     ColumnFamilyData* cfd = nullptr, bool allow_blob = false);
+
+extern Iterator* NewWotrDBIterator(Iterator* dbiter, Wotr* wotr);
 
 // A wrapper iterator which wraps DB Iterator and the arena, with which the DB
 // iterator is supposed be allocated. This class is used as an entry point of
