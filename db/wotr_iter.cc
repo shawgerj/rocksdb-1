@@ -3,11 +3,22 @@
 #include "cache/clock_cache.h"
 #include "wotr.h"
 
+#define WOTR_ITER_CACHE_SIZE (16 * 1024 * 1024)
+
 namespace rocksdb {
 
-class WOTRIter : public Iterator {
+class WotrIter : public Iterator {
 public:
   // TODO constructor, deconstructor
+  WOTRIter(Iterator* dbiter, Wotr* wotr)
+    : dbiter_(dbiter),
+      wotr_(wotr),
+      valid_(false),
+      sequential_(0),
+      s_(Status::OK()),
+  {
+    cache_ = NewClockCache(WOTR_ITER_CACHE_SIZE, 4);
+  }
 
   bool Valid() const override {
     return valid_;
@@ -67,7 +78,8 @@ private:
     size_t len;
   };
   
-  DBIter* dbiter_;
+  Iterator* dbiter_;
+  Wotr* wotr_;
   Cache* cache_;
   bool valid_;
   size_t sequential_;
@@ -84,7 +96,7 @@ private:
 
   Status load_from_ref(Slice key, struct wotr_ref* ref, Cache::Handle** h) {
     if ((*h = cache_->Lookup(key)) != nullptr) {
-      return h;
+      return h; // maybe need to add a ref? otherwise no guarantee re. eviction
     }
     
     char* data;
@@ -107,4 +119,8 @@ private:
   }
 };
 
+  WotrIter* NewWotrDBIterator(Iterator* dbiter, Wotr* wotr) {
+    WotrIter* wotr_iter = new WotrIter(dbiter, wotr);
+    return wotr_iter;
+  }
 } // namespace rocksdb
