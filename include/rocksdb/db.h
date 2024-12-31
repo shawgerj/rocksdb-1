@@ -553,7 +553,9 @@ class DB {
   // right now it uses GetPExternal all the time
   // might need to change that behavior... 
   virtual Iterator* NewWotrIterator(const ReadOptions& options,
-                                ColumnFamilyHandle* column_family) = 0;
+				    ColumnFamilyHandle* column_family) {
+    return nullptr;
+  }
   virtual Iterator* NewWotrIterator(const ReadOptions& options) {
     return NewWotrIterator(options, DefaultColumnFamily());
   }
