@@ -946,6 +946,7 @@ if(WITH_TESTS)
         db/db_iter_test.cc
         db/db_iter_stress_test.cc
         db/db_iterator_test.cc
+	db/db_wotr_iterator_test.cc
         db/db_log_iter_test.cc
         db/db_memtable_test.cc
         db/db_merge_operator_test.cc
