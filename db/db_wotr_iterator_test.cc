@@ -101,6 +101,10 @@ TEST_P(DBWotrIteratorTest, ManyWrites) {
   w->CloseAndDestroy();
 }
 
+INSTANTIATE_TEST_CASE_P(DBWotrIteratorTestInstance, DBWotrIteratorTest,
+                        testing::Values(DBTestBase::kDefault,
+					DBTestBase::kPipelinedWrite));
+  
 } // namespace rocksdb
 
 int main(int argc, char** argv) {
