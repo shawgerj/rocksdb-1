@@ -5,6 +5,11 @@
 #include "db/db_test_util.h"
 #include "wotr.h"
 
+struct wotr_ref {
+  size_t offset;
+  size_t len;
+};
+
 namespace rocksdb {
 
 class DBWotrIteratorTest : public DBTestBase, public testing::WithParamInterface<int> {
@@ -23,18 +28,12 @@ TEST_P(DBWotrIteratorTest, InitAndRegisterWotr) {
   w->CloseAndDestroy();
 }
 
-void to_be_bytes(char* bytearr, size_t num, int pos) {
-  for (size_t i = 0; i < sizeof(size_t); i++) {
-    bytearr[((pos+1) * 8 - 1) - i] = (num >> (i * 8)) & 0xFF;
-  }
-}
-
-void buildLocator(std::string* loc, size_t offset, size_t klen, size_t vlen) {
-  char arr[16];
+std::string buildLocator(size_t offset, size_t klen, size_t vlen) {
+  struct wotr_ref loc;
   size_t final_offset = offset + klen + sizeof(item_header);
-  to_be_bytes(arr, final_offset, 0);
-  to_be_bytes(arr, vlen, 1);
-  loc->assign(arr, arr + 16);
+  loc.offset = final_offset;
+  loc.len = vlen;
+  return std::string(reinterpret_cast<char*>(&loc), sizeof(struct wotr_ref));
 }
 
 
@@ -59,25 +58,21 @@ TEST_P(DBWotrIteratorTest, ManyWrites) {
   } 
 
   // load the db
-  std::vector<size_t> offsets;
   for (size_t i = 0; i < keys.size(); i++) {
+    size_t offset;
+    
     // put the key value pair in rocksdb+wotr
-    WriteBatch batch;
-    WriteBatch batch_ext;
-    batch.Put(keys[i], values[i]);
-    ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
+    ASSERT_OK(dbfull()->PutExternal(WriteOptions(), keys[i], values[i], &offset));
 
     // build a locator to read just the value from wotr
-    std::string loc;
-    buildLocator(&loc, offsets[0], keys[i].length(), values[i].length());
+    std::string loc = buildLocator(offset, keys[i].length(), values[i].length());
 
     // put the locator in (only) rocksdb
     // eventually we iterate over all the "iter_*" keys
     std::ostringstream k;
     k << "iter_" << keys[i];
     keys_ext.push_back(k.str());
-    batch_ext.Put(k.str(), loc);
-    ASSERT_OK(dbfull()->Write(WriteOptions(), &batch_ext, nullptr));
+    ASSERT_OK(dbfull()->Put(WriteOptions(), k.str(), loc));
   }
 
   // read all the values back from rocksdb
@@ -91,13 +86,15 @@ TEST_P(DBWotrIteratorTest, ManyWrites) {
   Iterator* iter = dbfull()->NewWotrIterator(ReadOptions());
   iter->Seek(keys_ext[0]);
 
-  for (size_t i = 0; i < keys_ext.size(); i++) {
-    ASSERT_OK(iter->status());
-    ASSERT_EQ(keys_ext[0], iter->key().ToString());
-    ASSERT_EQ(values[0], iter->value().ToString());
+  size_t i = 0;
+  while (iter->status().ok() && i < keys_ext.size()) {
+    ASSERT_EQ(keys_ext[i], iter->key().ToString());
+    ASSERT_EQ(values[i], iter->value().ToString());
     iter->Next();
+    i++;
   }
-  
+
+  delete iter;
   w->CloseAndDestroy();
 }
 
