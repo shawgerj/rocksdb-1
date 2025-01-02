@@ -338,7 +338,7 @@ if(WITH_NUMA)
   list(APPEND THIRDPARTY_LIBS ${NUMA_LIBRARIES})
 endif()
 
-option(WITH_TBB "build with Threading Building Blocks (TBB)" OFF)
+option(WITH_TBB "build with Threading Building Blocks (TBB)" ON)
 if(WITH_TBB)
   find_package(TBB REQUIRED)
   add_definitions(-DTBB)
