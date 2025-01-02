@@ -3,8 +3,15 @@
 #include "rocksdb/cache.h"
 #include "cache/clock_cache.h"
 #include "wotr.h"
+#include <iostream>
+#include <iomanip>
 
-#define WOTR_ITER_CACHE_SIZE (16 * 1024 * 1024)
+#define WOTR_ITER_CACHE_SIZE (16 * 1024L * 1024L)
+
+struct wotr_ref {
+  size_t offset;
+  size_t len;
+};
 
 namespace rocksdb {
   namespace {
@@ -25,7 +32,10 @@ public:
     cache_ = NewClockCache(WOTR_ITER_CACHE_SIZE, 4, false);
   }
 
-  // TODO deconstructor
+  ~WotrDBIter() {
+    delete dbiter_;
+    // cache_ shared_ptr is automaticaly cleaned up
+  }
 
   bool Valid() const override {
     return valid_;
@@ -125,25 +135,31 @@ private:
     return reinterpret_cast<char*>(v);
   }
 
-  Status load_from_ref(Slice key, const struct wotr_ref* ref) {
+  Status load_from_ref(Slice key, size_t offset, size_t len) {
     if ((curr_item_ = cache_->Lookup(key)) && curr_item_ != nullptr) {
       return Status::OK();
     }
     
     char* data;
-    if (wotr_->WotrPGet(ref->offset, &data, ref->len) < 0) {
+    if (wotr_->WotrPGet(offset, &data, len) < 0) {
+      if (curr_item_ != nullptr) {
+	cache_->Release(curr_item_, false);
+	curr_item_ = nullptr;
+      }
+      
       return Status::IOError("get_from_ref error reading from logfile.");
     }
 
-    cache_->Insert(key, Encode(data), ref->len, &deleter, &curr_item_); // need deleter fn
+    cache_->Insert(key, Encode(data), len, &deleter, &curr_item_);
     return Status::OK();
   }
 
   void load_data() {
     Slice dbval = dbiter_->value();
-    
-    const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(dbval.data());
-    Status s = load_from_ref(dbiter_->key(), ref);
+
+    const struct wotr_ref* loc = reinterpret_cast<const struct wotr_ref*>(dbval.data());
+
+    Status s = load_from_ref(dbiter_->key(), loc->offset, loc->len);
     valid_ = s_.ok() ? true : false;
     s_ = s;
   }
