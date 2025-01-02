@@ -8,11 +8,6 @@
 
 #define WOTR_ITER_CACHE_SIZE (16 * 1024L * 1024L)
 
-struct wotr_ref {
-  size_t offset;
-  size_t len;
-};
-
 namespace rocksdb {
   namespace {
       void deleter(const Slice& /*key*/, void* value) {

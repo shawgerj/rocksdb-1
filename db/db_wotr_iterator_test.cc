@@ -5,11 +5,6 @@
 #include "db/db_test_util.h"
 #include "wotr.h"
 
-struct wotr_ref {
-  size_t offset;
-  size_t len;
-};
-
 namespace rocksdb {
 
 class DBWotrIteratorTest : public DBTestBase, public testing::WithParamInterface<int> {
