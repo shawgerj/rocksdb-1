@@ -150,13 +150,16 @@ private:
   }
 
   void load_data() {
+    if (!dbiter_->Valid()) {
+      valid_ = false;
+      return;
+    }
     Slice dbval = dbiter_->value();
-
+    
     const struct wotr_ref* loc = reinterpret_cast<const struct wotr_ref*>(dbval.data());
-
-    Status s = load_from_ref(dbiter_->key(), loc->offset, loc->len);
+    
+    s_ = load_from_ref(dbiter_->key(), loc->offset, loc->len);
     valid_ = s_.ok() ? true : false;
-    s_ = s;
   }
 };
 
