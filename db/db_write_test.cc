@@ -42,19 +42,14 @@ void to_be_bytes(char* bytearr, size_t num, int pos) {
   }
 }
 
-// args: offset returned from WOTR and length of key and value
-// fills a 16-byte array with offset and length in big-endian order
-// +-----------------+
-// | offset | length |
-// +-----------------+
-void buildLocator(std::string* loc, size_t offset, size_t klen, size_t vlen) {
-  char arr[16];
+std::string buildLocator(size_t offset, size_t klen, size_t vlen) {
+  struct wotr_ref loc;
   size_t final_offset = offset + klen + sizeof(item_header);
-  to_be_bytes(arr, final_offset, 0);
-  to_be_bytes(arr, vlen, 1);
-  loc->assign(arr, arr + 16);
+  loc.offset = final_offset;
+  loc.len = vlen;
+  return std::string(reinterpret_cast<char*>(&loc), sizeof(struct wotr_ref));
 }
-
+  
 TEST_P(DBWriteTest, SingleWriteWOTR) {
   std::string logfile = "/tmp/wotrlog.txt";
   auto w = std::make_shared<Wotr>(logfile.c_str());
@@ -75,9 +70,8 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
   ASSERT_EQ(value.ToString(), v);
 
   WriteBatch batch2;
-  std::string locator;
   std::string k_ext = "key1ext";
-  buildLocator(&locator, offsets[0], k.length(), v.length());
+  std::string locator = buildLocator(offsets[0], k.length(), v.length());
   batch2.Put(k_ext, locator);
   
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, nullptr));
@@ -113,8 +107,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
 
   for (int i = 0; i < 2; i++) {
-    std::string loc;
-    buildLocator(&loc, offsets[i], keys[i].length(), values[i].length());
+    std::string loc = buildLocator(offsets[i], keys[i].length(), values[i].length());
     locators.push_back(loc);
   }
 
@@ -124,8 +117,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
 
   for (int i = 2; i < num_writes; i++) {
-    std::string loc;
-    buildLocator(&loc, offsets[i], keys[i].length(), values[i].length());
+    std::string loc = buildLocator(offsets[i], keys[i].length(), values[i].length());
     locators.push_back(loc);
   }
 
