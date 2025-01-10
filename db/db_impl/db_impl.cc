@@ -277,6 +277,7 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
   // This is optional, because a "secondary" LSM tree might be using wotr
   // and it should wait for the application to initiate a recovery process
   // instead of reading the log directly.
+  Status s = Status::OK();
   if (recover) {
     size_t offset;
     PinnableSlice val;
@@ -293,27 +294,28 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
     ListColumnFamilies(initial_db_options_, dbname_, &cfs);
     uint32_t numcfs = cfs.size();
 
-    for (witer.set_offset(offset); witer.read(&entry) != -1; witer.next()) {
-      char* key = witer.read_key();
-      std::string keystr = std::string(key, entry.ksize);
+    witer.seek(offset);
+    while (witer.valid()) {
+      std::string keystr = std::string(witer.key(), witer.key_size());
       uint32_t cfid = witer.GetCfID();
       if (cfid < numcfs) {
-	std::string entry_offset(reinterpret_cast<const char*>(&(entry.offset)), sizeof(size_t));
-	Status s = WriteBatchInternal::Put(&batch, cfid, keystr, entry_offset);
+	size_t iterpos = witer.position();
+	std::string entry_offset(reinterpret_cast<const char*>(&iterpos), sizeof(size_t));
+	std::cout << "putting key: " << keystr << std::endl;
+	s = WriteBatchInternal::Put(&batch, cfid, keystr, entry_offset);
 	if (!s.ok()) {
-	  free(key);
-	  return s;
+	  break;
 	}
       }
-      free(key);
+      witer.next();
     }
     WriteOptions opt = WriteOptions();
     opt.disableWAL = true;
-      
-    Status s = Write(opt, &batch);
-    return s;
+    
+    s = Write(opt, &batch);
+
   }
-  return Status::OK();
+  return s;
 }
 
 Status DBImpl::Resume() {
