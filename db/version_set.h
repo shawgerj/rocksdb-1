@@ -27,7 +27,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
+#include "execinfo.h"
 #include "db/column_family.h"
 #include "db/compaction/compaction.h"
 #include "db/compaction/compaction_picker.h"
@@ -972,9 +974,29 @@ Status DumpManifest(Options& options, std::string& dscname,
     return last_published_sequence_.load(std::memory_order_seq_cst);
   }
 
+  void print_backtrace() {
+    const int max_frames = 64;
+    void *buffer[max_frames];
+    int num_frames = backtrace(buffer, max_frames);
+    char **symbols = backtrace_symbols(buffer, num_frames);
+    
+    std::cerr << "Backtrace:\n";
+    for (int i = 0; i < num_frames; ++i) {
+        std::cerr << symbols[i] << "\n";
+    }
+    
+    free(symbols);  // Allocated by backtrace_symbols
+  }
+
   // Set the last sequence number to s.
   void SetLastSequence(uint64_t s) {
-    assert(s >= last_sequence_);
+    // shawgerj more debug info needed, change back to assert() when done
+    if (s < last_sequence_) {
+      std::cout << "SetLastSequence: s " << s << " last " << last_sequence_ << std::endl;
+      print_backtrace();
+      abort();
+    }
+	//    assert(s >= last_sequence_);
     // Last visible sequence must always be less than last written seq
     assert(!db_options_->two_write_queues || s <= last_allocated_sequence_);
     last_sequence_.store(s, std::memory_order_release);

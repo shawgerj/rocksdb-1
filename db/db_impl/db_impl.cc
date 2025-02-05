@@ -299,10 +299,15 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
       std::string keystr = std::string(witer.key(), witer.key_size());
       uint32_t cfid = witer.GetCfID();
       if (cfid < numcfs) {
-	size_t iterpos = witer.position();
-	std::string entry_offset(reinterpret_cast<const char*>(&iterpos), sizeof(size_t));
+	struct wotr_ref ref;
+	ref.offset = witer.position();
+	ref.len = sizeof(item_header) + witer.key_size() + witer.value_size();
+	
+	// size_t iterpos = witer.position();
+	// std::string entry_offset(reinterpret_cast<const char*>(&iterpos), sizeof(size_t));
+	std::string locator(reinterpret_cast<char*>(&ref), sizeof(struct wotr_ref));
 	std::cout << "putting key: " << keystr << std::endl;
-	s = WriteBatchInternal::Put(&batch, cfid, keystr, entry_offset);
+	s = WriteBatchInternal::Put(&batch, cfid, keystr, locator);
 	if (!s.ok()) {
 	  break;
 	}
@@ -1550,23 +1555,42 @@ Status DBImpl::Get(const ReadOptions& read_options,
   return GetImpl(read_options, column_family, key, value);
 }
 
+static void cleanup_wotr_buf(void* arg1, void* /* arg2 */) {
+  free(arg1);
+}
+  
 Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
     char* data;
     size_t len;
     if (loc.empty()) {
       std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
     }
-    size_t offset;
-    memcpy(&offset, loc.data(), loc.size());
+
+    const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(loc.data());
+
     if (wotr_ == nullptr) {
       std::cout << "No wotr! Thirsty!" << std::endl;
     }
-    if (wotr_->WotrGet(offset, &data, &len) < 0) {
+
+    len = ref->len;
+    if (wotr_->WotrGet(ref->offset, &data, &len) < 0) {
       return Status::IOError("GetExternal error reading from logfile.");
     }
 
-    value->GetSelf()->assign(data, len);
-    value->PinSelf();
+    // size_t offset;
+    // memcpy(&offset, loc.data(), loc.size());
+    // if (wotr_ == nullptr) {
+    //   std::cout << "No wotr! Thirsty!" << std::endl;
+    // }
+    // if (wotr_->WotrGet(offset, &data, &len) < 0) {
+    //   return Status::IOError("GetExternal error reading from logfile.");
+    // }
+
+    if (value->IsPinned()) {
+      value->Reset();
+    }
+    Slice s(data, len);
+    value->PinSlice(s, &cleanup_wotr_buf, data, nullptr);
     return Status::OK();
 }
 
@@ -1582,10 +1606,6 @@ Status DBImpl::GetExternal(const ReadOptions& options,
 
     s = GetExternalImpl(pinnable_val, value);
     return s;
-}
-
-static void cleanup_wotr_buf(void* arg1, void* /* arg2 */) {
-  free(arg1);
 }
 
 Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
