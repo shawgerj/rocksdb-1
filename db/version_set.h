@@ -991,7 +991,7 @@ Status DumpManifest(Options& options, std::string& dscname,
   // Set the last sequence number to s.
   void SetLastSequence(uint64_t s) {
     // shawgerj more debug info needed, change back to assert() when done
-    if (s >= last_sequence_) {
+    if (s < last_sequence_) {
       std::cout << "SetLastSequence: s " << s << " last " << last_sequence_ << std::endl;
       print_backtrace();
       abort();
