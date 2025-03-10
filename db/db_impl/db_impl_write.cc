@@ -1326,9 +1326,13 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
     char v_type = iter->GetValueType();
     if (v_type == kTypeValue || v_type == kTypeColumnFamilyValue) {
       offsets[i] += (size_t)loc;
-      std::string offset_string(reinterpret_cast<const char*>(&(offsets[i])), sizeof(size_t));
+      struct wotr_ref ref;
+      ref.offset = offsets[i];
+      ref.len = iter->Key().size() + iter->Value().size() + sizeof(item_header);
+      
+      std::string locator(reinterpret_cast<char*>(&ref), sizeof(struct wotr_ref));
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
-                              iter->Key(), offset_string);
+                              iter->Key(), locator);
       i++;
     } else if (v_type == kTypeDeletion || v_type == kTypeColumnFamilyDeletion) {
       WriteBatchInternal::Delete(new_batch, iter->GetColumnFamilyId(),
