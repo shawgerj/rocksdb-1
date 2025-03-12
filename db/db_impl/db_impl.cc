@@ -1624,6 +1624,10 @@ Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
       return Status::IOError("GetPExternal error reading from logfile.");
     }
 
+    if (value->IsPinned()) {
+      value->Reset();
+    }
+
     Slice s(data, ref->len);
     value->PinSlice(s, &cleanup_wotr_buf, data, nullptr);
     return Status::OK();
