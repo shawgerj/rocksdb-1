@@ -1555,10 +1555,6 @@ Status DBImpl::Get(const ReadOptions& read_options,
   return GetImpl(read_options, column_family, key, value);
 }
 
-static void cleanup_wotr_buf(void* arg1, void* /* arg2 */) {
-  free(arg1);
-}
-  
 Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
   char* data;
   size_t len;
@@ -1750,7 +1746,7 @@ Status DBImpl::GetImpl(const ReadOptions& read_options,
       RecordTick(stats_, MEMTABLE_HIT);
     }
     if (!done && !s.ok() && !s.IsMergeInProgress()) {
-      ReturnAndCleanupSuperVersion(cfd, sv);
+      ReturnAndCleanup(cfd, sv);
       return s;
     }
   }
