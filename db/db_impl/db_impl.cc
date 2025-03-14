@@ -1746,7 +1746,7 @@ Status DBImpl::GetImpl(const ReadOptions& read_options,
       RecordTick(stats_, MEMTABLE_HIT);
     }
     if (!done && !s.ok() && !s.IsMergeInProgress()) {
-      ReturnAndCleanup(cfd, sv);
+      ReturnAndCleanupSuperVersion(cfd, sv);
       return s;
     }
   }
