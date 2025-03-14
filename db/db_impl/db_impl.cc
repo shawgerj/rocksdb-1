@@ -1559,39 +1559,42 @@ static void cleanup_wotr_buf(void* arg1, void* /* arg2 */) {
   free(arg1);
 }
   
-Status DBImpl::GetExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
-    char* data;
-    size_t len;
-    if (loc.empty()) {
-      std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
-    }
+Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
+  char* data;
+  size_t len;
+  size_t dataptr;
+  if (loc.empty()) {
+    std::cout << "Slice was empty! Couldn't find an offset at that key" << std::endl;
+  }
 
-    const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(loc.data());
+  const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(loc.data());
 
-    if (wotr_ == nullptr) {
-      std::cout << "No wotr! Thirsty!" << std::endl;
-    }
+  if (wotr_ == nullptr) {
+    std::cout << "No wotr! Thirsty!" << std::endl;
+  }
 
-    len = ref->len;
-    if (wotr_->WotrGet(ref->offset, &data, &len) < 0) {
-      return Status::IOError("GetExternal error reading from logfile.");
-    }
+  len = ref->len;
+  /*           dataptr       len
+   *        <==========> <=========>
+   *        +-----+-----+-----------+
+   * key -> | hdr | key |   value   |        
+   *        +-----+-----+-----------+
+   *        ^
+   *       data
+   * WotrGet() modifies offset to point to the value within `data`
+   *           modifies len to refer to the length of the value
+   * `data` is safe to free after assignment to `value`
+   */
+  if (wotr_->WotrGet(ref->offset, &data, &len, &dataptr) < 0) {
+    return Status::IOError("GetExternal error reading from logfile.");
+  }
 
-    // size_t offset;
-    // memcpy(&offset, loc.data(), loc.size());
-    // if (wotr_ == nullptr) {
-    //   std::cout << "No wotr! Thirsty!" << std::endl;
-    // }
-    // if (wotr_->WotrGet(offset, &data, &len) < 0) {
-    //   return Status::IOError("GetExternal error reading from logfile.");
-    // }
+  if (value != nullptr) {
+    value->assign(data + dataptr, len);
+  }
+  free(data);
 
-    if (value->IsPinned()) {
-      value->Reset();
-    }
-    Slice s(data, len);
-    value->PinSlice(s, &cleanup_wotr_buf, data, nullptr);
-    return Status::OK();
+  return Status::OK();
 }
 
 Status DBImpl::GetExternal(const ReadOptions& options,
@@ -1604,13 +1607,16 @@ Status DBImpl::GetExternal(const ReadOptions& options,
         return s;
     }
 
-    s = GetExternalImpl(pinnable_val, value);
+    s = GetExternalImpl(pinnable_val, value->GetSelf());
+    if (s.ok()) {
+      value->PinSelf();
+    }
+    
     return s;
 }
 
-Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
+Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
     char* data;
-//    size_t len;
     if (loc.empty()) {
       std::cout << "Slice was empty! No LSM data at that key" << std::endl;
     }
@@ -1624,12 +1630,8 @@ Status DBImpl::GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value) {
       return Status::IOError("GetPExternal error reading from logfile.");
     }
 
-    if (value->IsPinned()) {
-      value->Reset();
-    }
-
-    Slice s(data, ref->len);
-    value->PinSlice(s, &cleanup_wotr_buf, data, nullptr);
+    value->assign(data, ref->len);
+    free(data);
     return Status::OK();
 }
 
@@ -1643,7 +1645,10 @@ Status DBImpl::GetPExternal(const ReadOptions& options,
         return s;
     }
 
-    s = GetPExternalImpl(pinnable_val, value);
+    s = GetPExternalImpl(pinnable_val, value->GetSelf());
+    if (s.ok()) {
+      value->PinSelf();
+    }
     return s;
 }
 

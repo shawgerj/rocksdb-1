@@ -438,8 +438,8 @@ class DBImpl : public DB {
   // Function that Get and KeyMayExist call with no_io true or false
   // Note: 'value_found' from KeyMayExist propagates here
 
-  Status GetExternalImpl(PinnableSlice& loc, PinnableSlice* value);
-  Status GetPExternalImpl(PinnableSlice& loc, PinnableSlice* value);
+  Status GetExternalImpl(PinnableSlice& loc, std::string* value);
+  Status GetPExternalImpl(PinnableSlice& loc, std::string* value);
     
   Status GetImpl(const ReadOptions& options, ColumnFamilyHandle* column_family,
                  const Slice& key, PinnableSlice* value,
