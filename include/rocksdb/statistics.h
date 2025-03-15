@@ -359,6 +359,7 @@ extern const std::vector<std::pair<Tickers, std::string>> TickersNameMap;
 enum Histograms : uint32_t {
   DB_GET = 0,
   DB_WRITE,
+  WOTR_GET,
   COMPACTION_TIME,
   COMPACTION_CPU_TIME,
   SUBCOMPACTION_SETUP_TIME,
