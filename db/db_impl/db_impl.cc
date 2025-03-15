@@ -1556,6 +1556,7 @@ Status DBImpl::Get(const ReadOptions& read_options,
 }
 
 Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
+  PERF_CPU_TIMER_GUARD(get_cpu_nanos, env_);
   StopWatch sw(env_, stats_, WOTR_GET);
   char* data;
   size_t len;
@@ -1613,6 +1614,7 @@ Status DBImpl::GetExternal(const ReadOptions& options,
 }
 
 Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
+    PERF_CPU_TIMER_GUARD(get_cpu_nanos, env_);
     StopWatch sw(env_, stats_, WOTR_GET);
     char* data;
     if (loc.empty()) {
