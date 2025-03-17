@@ -50,6 +50,7 @@ if(CCACHE_FOUND)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
 
+option(ROCKSDB_LOGGING "Enable RocksDB read write logging" OFF)
 option(WITH_WOTR "build with Wotr support" OFF)
 option(WITH_JEMALLOC "build with JeMalloc" OFF)
 option(WITH_SNAPPY "build with SNAPPY" OFF)
@@ -65,6 +66,10 @@ endif()
 
 if(WITH_WOTR)
   add_definitions(-DWITH_WOTR)
+endif()
+
+if(ROCKSDB_LOGGING)
+  add_compile_definitions(ROCKSDB_LOGGING)
 endif()
 
 if(MSVC)

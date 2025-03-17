@@ -27,11 +27,13 @@ namespace rocksdb {
 // Convenience methods
 Status DBImpl::Put(const WriteOptions& o, ColumnFamilyHandle* column_family,
                    const Slice& key, const Slice& val) {
+  LOG_KEY("Put", key);
   return DB::Put(o, column_family, key, val);
 }
     
 Status DBImpl::PutExternal(const WriteOptions& o, ColumnFamilyHandle* column_family,
                            const Slice& key, const Slice& val, size_t* offset) {
+    LOG_KEY("PutExternal", key);
     return DB::PutExternal(o, column_family, key, val, offset);
 }
 
@@ -64,6 +66,7 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 // modified write
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
+  LOG_WRITE("Write", offsets);
     return WriteImpl(write_options, my_batch, nullptr, nullptr, 0, false, nullptr, 0, nullptr, offsets);
 }
     
@@ -78,6 +81,7 @@ Status DBImpl::WriteWithCallback(const WriteOptions& write_options,
 Status DBImpl::MultiBatchWrite(const WriteOptions& options,
                                std::vector<WriteBatch*>&& updates,
                                std::vector<size_t>* offsets) {
+  LOG_WRITE("MultiBatchWrite", offsets);
   if (immutable_db_options_.enable_multi_thread_write) {
     return MultiBatchWriteImpl(options, std::move(updates), nullptr, nullptr,
                                0, nullptr, offsets);
@@ -2117,6 +2121,7 @@ Status DB::PutExternal(const WriteOptions& opt,
                        ColumnFamilyHandle* column_family,
                        const Slice& key, const Slice& value,
                        size_t* offset) {
+  std::cout << "Entering PutExternal" << std::endl;
   std::vector<size_t> offsets;
   if (nullptr == opt.timestamp) {
     // Pre-allocate size of write batch conservatively.
@@ -2125,12 +2130,16 @@ Status DB::PutExternal(const WriteOptions& opt,
     WriteBatch batch(key.size() + value.size() + 24);
     Status s = batch.Put(column_family, key, value);
     if (!s.ok()) {
+      std::cout << "Bad batch put " << s.ToString() << std::endl;
       return s;
     }
 
     s = Write(opt, &batch, &offsets);
     if (s.ok()) {
+      std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
       *offset = offsets[0];
+    } else {
+      std::cout << "Bad write " << s.ToString() << std::endl;
     }
     return s;
   }
@@ -2141,6 +2150,7 @@ Status DB::PutExternal(const WriteOptions& opt,
                    ts_sz);
   Status s = batch.Put(column_family, key, value);
   if (!s.ok()) {
+    std::cout << "Bad batch put " << s.ToString() << std::endl;
     return s;
   }
   s = batch.AssignTimestamp(*ts);
@@ -2150,7 +2160,10 @@ Status DB::PutExternal(const WriteOptions& opt,
 
   s = Write(opt, &batch, &offsets);
   if (s.ok()) {
+    std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
     *offset = offsets[0];
+  } else {
+    std::cout << "Bad write " << s.ToString() << std::endl;
   }
   return s;
 }

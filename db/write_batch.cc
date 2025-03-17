@@ -912,6 +912,7 @@ Status WriteBatchInternal::Put(WriteBatch* b, uint32_t column_family_id,
 
 Status WriteBatch::Put(ColumnFamilyHandle* column_family, const Slice& key,
                        const Slice& value) {
+  LOG_WB_PUT("Put", key);
   return WriteBatchInternal::Put(this, GetColumnFamilyID(column_family), key,
                                  value);
 }
