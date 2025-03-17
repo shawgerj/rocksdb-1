@@ -30,6 +30,10 @@ public:
   }
 
   ~WotrDBIter() {
+    if (currvalue_ != nullptr) {
+      free(currvalue_);
+      currvalue_ = nullptr;
+    }
     delete dbiter_;
     // cache_ shared_ptr is automaticaly cleaned up
   }
