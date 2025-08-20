@@ -64,12 +64,12 @@
 #include "wotr.h"
 
 #ifdef ROCKSDB_LOGGING
-#define LOG_KEY(method, key) printf("%s %s\n", method, (key).ToString().c_str())
-#define LOG_WRITE(method, external) printf("WRITE %s %d\n", method, external ? 1 : 0)
-#define LOG_WB_PUT(method, key) printf("WB_PUT %s %s\n", method, (key).ToString().c_str())
+#define LOG_KEY(method, key) printf("%s %s\n", (method), (key).ToString().c_str())
+#define LOG_WRITE(method, external) printf("WRITE %s %d\n", (method), external ? 1 : 0)
+#define LOG_WB_PUT(method, key) printf("WB_PUT %s %s\n", (method), (key).ToString().c_str())
 #else
 #define LOG_KEY(method, key) do {} while(0)
-#define LOG_WRITE(method) do {} while(0)
+#define LOG_WRITE(method, external) do {} while(0)
 #define LOG_WB_PUT(method, key) do {} while(0)
 #endif
 

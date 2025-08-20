@@ -1599,7 +1599,7 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
 Status DBImpl::GetExternal(const ReadOptions& options,
                    ColumnFamilyHandle* column_family, const Slice& key,
                    PinnableSlice* value) {
-    LOG_KEY("GetExternal", key)
+  LOG_KEY("GetExternal", key);
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
@@ -1617,7 +1617,7 @@ Status DBImpl::GetExternal(const ReadOptions& options,
 
 Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
     PERF_CPU_TIMER_GUARD(get_cpu_nanos, env_);
-    StopWatch sw(env_, stats_, WOTR_PGET);
+    StopWatch sw(env_, stats_, WOTR_GET);
     char* data;
     if (loc.empty()) {
       std::cout << "Slice was empty! No LSM data at that key" << std::endl;
