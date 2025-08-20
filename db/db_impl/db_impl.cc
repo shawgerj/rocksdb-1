@@ -1552,6 +1552,7 @@ ColumnFamilyHandle* DBImpl::PersistentStatsColumnFamily() const {
 Status DBImpl::Get(const ReadOptions& read_options,
                    ColumnFamilyHandle* column_family, const Slice& key,
                    PinnableSlice* value) {
+  LOG_KEY("Get", key);
   return GetImpl(read_options, column_family, key, value);
 }
 
@@ -1598,6 +1599,7 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
 Status DBImpl::GetExternal(const ReadOptions& options,
                    ColumnFamilyHandle* column_family, const Slice& key,
                    PinnableSlice* value) {
+    LOG_KEY("GetExternal", key)
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
@@ -1615,7 +1617,7 @@ Status DBImpl::GetExternal(const ReadOptions& options,
 
 Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
     PERF_CPU_TIMER_GUARD(get_cpu_nanos, env_);
-    StopWatch sw(env_, stats_, WOTR_GET);
+    StopWatch sw(env_, stats_, WOTR_PGET);
     char* data;
     if (loc.empty()) {
       std::cout << "Slice was empty! No LSM data at that key" << std::endl;
@@ -1638,6 +1640,7 @@ Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
 Status DBImpl::GetPExternal(const ReadOptions& options,
                             ColumnFamilyHandle* column_family, const Slice& key,
                             PinnableSlice* value) {
+    LOG_KEY("GetPExternal", key);
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
@@ -3858,6 +3861,16 @@ Status DBImpl::IngestExternalFiles(
   if (args.empty()) {
     return Status::InvalidArgument("ingestion arg list is empty");
   }
+
+  // shawgerj log ingest files
+  printf("INGEST:");
+  for (const auto& arg : args) {
+    for (const auto& filename : arg.external_files) {
+      printf(" %s", filename.c_str());
+    }
+  }
+  printf("\n");
+  
   {
     std::unordered_set<ColumnFamilyHandle*> unique_cfhs;
     for (const auto& arg : args) {

@@ -27,11 +27,13 @@ namespace rocksdb {
 // Convenience methods
 Status DBImpl::Put(const WriteOptions& o, ColumnFamilyHandle* column_family,
                    const Slice& key, const Slice& val) {
+  LOG_KEY("Put", key);
   return DB::Put(o, column_family, key, val);
 }
     
 Status DBImpl::PutExternal(const WriteOptions& o, ColumnFamilyHandle* column_family,
                            const Slice& key, const Slice& val, size_t* offset) {
+    LOG_KEY("PutExternal", key);
     return DB::PutExternal(o, column_family, key, val, offset);
 }
 
@@ -64,6 +66,7 @@ void DBImpl::SetRecoverableStatePreReleaseCallback(
 // modified write
 Status DBImpl::Write(const WriteOptions& write_options, WriteBatch* my_batch,
                      std::vector<size_t>* offsets) {
+    LOG_WRITE("Write", offsets)
     return WriteImpl(write_options, my_batch, nullptr, nullptr, 0, false, nullptr, 0, nullptr, offsets);
 }
     
@@ -78,6 +81,7 @@ Status DBImpl::WriteWithCallback(const WriteOptions& write_options,
 Status DBImpl::MultiBatchWrite(const WriteOptions& options,
                                std::vector<WriteBatch*>&& updates,
                                std::vector<size_t>* offsets) {
+  LOG_WRITE("MultiBatchWrite", offsets)
   if (immutable_db_options_.enable_multi_thread_write) {
     return MultiBatchWriteImpl(options, std::move(updates), nullptr, nullptr,
                                0, nullptr, offsets);
