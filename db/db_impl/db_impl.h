@@ -180,7 +180,6 @@ class DBImpl : public DB {
                                                   bool need_log_sync);
 
   Status WriteToExt(const WriteThread::WriteGroup& write_group,
-                    std::vector<size_t>* offsets,
                     bool need_log_sync, bool need_log_dir_sync,
                     SequenceNumber sequence);
 
