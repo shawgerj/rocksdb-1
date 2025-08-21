@@ -168,7 +168,7 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
 
           RecordTick(stats_, WRITE_DONE_BY_OTHER, wal_write_group.size - 1);
         }        
-        writer.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+        writer.status = WriteToExt(wal_write_group, need_log_sync, need_log_dir_sync, current_sequence);
       }
       if (!write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
@@ -262,6 +262,9 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
   if (seq_used != nullptr) {
     *seq_used = writer.sequence;
   }
+
+  if (offsets != nullptr)
+    offsets->insert(offsets->end(), writer.offsets.begin(), writer.offsets.end());
   assert(writer.state == WriteThread::STATE_COMPLETED);
   return writer.status;
 }
@@ -420,6 +423,8 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
       *seq_used = w.sequence;
     }
     // write is complete and leader has updated sequence
+    if (offsets != nullptr)
+      offsets->insert(offsets->end(), w.offsets.begin(), w.offsets.end());
     return w.FinalStatus();
   }
   // else we are the leader of the write batch group
@@ -540,7 +545,7 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     if (!two_write_queues_) {
       if (wotr_write) {
           PERF_TIMER_GUARD(write_wotr_time);
-        status = WriteToExt(write_group, offsets, need_log_sync, need_log_dir_sync, last_sequence + 1);
+        status = WriteToExt(write_group, need_log_sync, need_log_dir_sync, last_sequence + 1);
       }
       if (status.ok() && !write_options.disableWAL) {
         PERF_TIMER_GUARD(write_wal_time);
@@ -664,6 +669,8 @@ Status DBImpl::WriteImpl(const WriteOptions& write_options,
     write_thread_.ExitAsBatchGroupLeader(write_group, status);
   }
 
+  if (offsets != nullptr)
+    offsets->insert(offsets->end(), w.offsets.begin(), w.offsets.end());
   if (status.ok()) {
     status = w.FinalStatus();
   }
@@ -749,7 +756,7 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
           RecordTick(stats_, WRITE_DONE_BY_OTHER, wal_write_group.size - 1);
         }
 
-        w.status = WriteToExt(wal_write_group, offsets, need_log_sync, need_log_dir_sync, current_sequence);
+        w.status = WriteToExt(wal_write_group, need_log_sync, need_log_dir_sync, current_sequence);
     }
     if (w.status.ok() && !write_options.disableWAL) {
       PERF_TIMER_GUARD(write_wal_time);
@@ -815,6 +822,8 @@ Status DBImpl::PipelinedWriteImpl(const WriteOptions& write_options,
   }
 
   assert(w.state == WriteThread::STATE_COMPLETED);
+  if (offsets != nullptr)
+    offsets->insert(offsets->end(), w.offsets.begin(), w.offsets.end());
   return w.FinalStatus();
 }
 
@@ -1348,14 +1357,12 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
 }
       
 Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
-                          std::vector<size_t>* offsets,
                           bool need_log_sync, bool need_log_dir_sync,
                           SequenceNumber sequence) {
   // TODO add sync. Look in WriteToWAL for an example
 //  (void)need_log_sync;
   (void)need_log_dir_sync;
   Status status;
-  std::vector<size_t> new_offsets;
 
   size_t write_with_wotr = 0;
   size_t total_byte_size = 0;
@@ -1365,8 +1372,7 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
   for (auto w : write_group) {
     WriteBatch new_batch;
     if (w->batch) {
-      new_offsets = WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync);
-      offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
+      w->offsets = std::move(WriteWotrAndPrepareNewBatch(w->batch, &new_batch, need_log_sync));
       *(w->batch) = new_batch; // batch has been modified!
       
       WriteBatchInternal::SetSequence(w->batch, sequence);
@@ -1375,8 +1381,8 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
         total_byte_size, WriteBatchInternal::ByteSize(w->batch));
     } else {
       for (size_t i = 0; i < w->batches.size(); i++) {
-        new_offsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
-        offsets->insert(offsets->end(), new_offsets.begin(), new_offsets.end());
+	std::vector<size_t> batchoffsets = WriteWotrAndPrepareNewBatch(w->batches[i], &new_batch, need_log_sync);
+        w->offsets.insert(w->offsets.end(), batchoffsets.begin(), batchoffsets.end());
         *(w->batches[i]) = new_batch; // batch has been modified!
         
         WriteBatchInternal::SetSequence(w->batches[i], sequence);

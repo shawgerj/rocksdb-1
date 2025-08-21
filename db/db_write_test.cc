@@ -283,8 +283,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   ASSERT_OK(dbfull()->SetExternal(w.get(), false));
   
   std::vector<port::Thread> threads;
-  // we don't know how the writes will be grouped. So count offsets generated
-  // per thread, and ensure it all adds up to 2048. 
+
   std::atomic<uint32_t> total_offsets(0);
   for (int t = 0; t < kNumThreads; t++) {
     threads.push_back(port::Thread(
@@ -305,6 +304,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
               batches.push_back(batch);
             }
             dbfull()->MultiBatchWrite(opt, std::move(batches), &offsets);
+	    ASSERT_EQ(offsets.size(), kBatchSize * kNumBatch);
             total_offsets += offsets.size();
           }
         },
