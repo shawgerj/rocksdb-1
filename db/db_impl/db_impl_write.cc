@@ -1341,7 +1341,7 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
       offsets[i] += (size_t)loc;
       struct wotr_ref ref;
       ref.offset = offsets[i];
-      ref.len = iter->Key().size() + iter->Value().size() + sizeof(item_header);
+      ref.len = iter->Value().size();
       
       std::string locator(reinterpret_cast<char*>(&ref), sizeof(struct wotr_ref));
       WriteBatchInternal::Put(new_batch, iter->GetColumnFamilyId(),
