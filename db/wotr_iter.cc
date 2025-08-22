@@ -174,7 +174,7 @@ private:
     // }
     
     char* data;
-    if (wotr_->WotrPGet(offset, &data, len) < 0) {
+    if (wotr_->WotrGet(offset, &data, len) < 0) {
       // if (curr_item_ != nullptr) {
       // 	cache_->Release(curr_item_, false);
       // 	curr_item_ = nullptr;

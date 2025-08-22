@@ -210,7 +210,8 @@ class WotrBuilder : public WriteBatch::Handler {
     header.cfid = cf_id;
 
     // record offset
-    offsets_->push_back(logstring_->size());
+    // NEW offset is the location of the value! (we skip hdr and keylen).
+    offsets_->push_back(logstring_->size() + sizeof(item_header) + key.size());
     // append header, key, and value to logstring_
     logstring_->append((const char*)&header, sizeof(item_header));
     logstring_->append(key.data(), key.size());
