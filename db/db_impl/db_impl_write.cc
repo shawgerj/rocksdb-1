@@ -150,7 +150,7 @@ Status DBImpl::MultiBatchWriteImpl(const WriteOptions& write_options,
       stats->AddDBStats(InternalStats::kIntStatsNumKeysWritten, total_count);
       RecordTick(stats_, NUMBER_KEYS_WRITTEN, total_count);
 
-      // if we are using the valuelog, this should be accounted in WriteToExt
+      // only record total_byte_size here if we are NOT using WOTR
       if (offsets == nullptr) {
         stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
         RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
@@ -1318,17 +1318,8 @@ std::vector<size_t> DBImpl::WriteWotrAndPrepareNewBatch(WriteBatch* batch,
     return offsets; // it'll just be empty, I guess
   }
 
-  if (need_log_sync) {
-    StopWatch sw(env_, stats_, WOTR_FILE_SYNC_MICROS);
-    wotr_->Sync();
-  }             
-
-  // do metrics, its a better place than WriteToExt since we can do per-write
+  // record num bytes written to WOTR file here
   auto stats = default_cf_internal_stats_;
-  if (need_log_sync) {
-    stats->AddDBStats(InternalStats::kIntStatsWotrFileSynced, 1);
-    RecordTick(stats_, WOTR_FILE_SYNCED);
-  }
   stats->AddDBStats(InternalStats::kIntStatsWotrFileBytes, data.size());
   RecordTick(stats_, WOTR_FILE_BYTES, data.size());
   
@@ -1392,10 +1383,22 @@ Status DBImpl::WriteToExt(const WriteThread::WriteGroup& write_group,
       }
     }
   }
-  
+
+  if (need_log_sync) {
+    StopWatch sw(env_, stats_, WOTR_FILE_SYNC_MICROS);
+    wotr_->Sync();
+  }             
+
+  // update some metrics
   auto stats = default_cf_internal_stats_;
+  if (need_log_sync) {
+    stats->AddDBStats(InternalStats::kIntStatsWotrFileSynced, 1);
+    RecordTick(stats_, WOTR_FILE_SYNCED);
+  }
   stats->AddDBStats(InternalStats::kIntStatsWriteWithWotr, write_with_wotr);
   RecordTick(stats_, WRITE_WITH_WOTR, write_with_wotr);
+  // this is the number of bytes written to LSM tree, which will be fewer than
+  // the number of bytes written to WOTR
   stats->AddDBStats(InternalStats::kIntStatsBytesWritten, total_byte_size);
   RecordTick(stats_, BYTES_WRITTEN, total_byte_size);
   RecordInHistogram(stats_, BYTES_PER_WRITE, total_byte_size);
