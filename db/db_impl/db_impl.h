@@ -63,6 +63,16 @@
 
 #include "wotr.h"
 
+#ifdef ROCKSDB_LOGGING
+#define LOG_KEY(method, key) printf("%s %s\n", (method), (key).ToString().c_str())
+#define LOG_WRITE(method, external) printf("WRITE %s %d\n", (method), external ? 1 : 0)
+#define LOG_WB_PUT(method, key) printf("WB_PUT %s %s\n", (method), (key).ToString().c_str())
+#else
+#define LOG_KEY(method, key) do {} while(0)
+#define LOG_WRITE(method, external) do {} while(0)
+#define LOG_WB_PUT(method, key) do {} while(0)
+#endif
+
 namespace rocksdb {
 
 class Arena;
@@ -170,7 +180,6 @@ class DBImpl : public DB {
                                                   bool need_log_sync);
 
   Status WriteToExt(const WriteThread::WriteGroup& write_group,
-                    std::vector<size_t>* offsets,
                     bool need_log_sync, bool need_log_dir_sync,
                     SequenceNumber sequence);
 
@@ -186,12 +195,6 @@ class DBImpl : public DB {
 
   using DB::GetExternal;
   virtual Status GetExternal(const ReadOptions& options,
-                             ColumnFamilyHandle* column_family,
-			     const Slice& key,
-                             PinnableSlice* value) override;
-
-  using DB::GetPExternal;
-  virtual Status GetPExternal(const ReadOptions& options,
                              ColumnFamilyHandle* column_family,
 			     const Slice& key,
                              PinnableSlice* value) override;
@@ -439,7 +442,6 @@ class DBImpl : public DB {
   // Note: 'value_found' from KeyMayExist propagates here
 
   Status GetExternalImpl(PinnableSlice& loc, std::string* value);
-  Status GetPExternalImpl(PinnableSlice& loc, std::string* value);
     
   Status GetImpl(const ReadOptions& options, ColumnFamilyHandle* column_family,
                  const Slice& key, PinnableSlice* value,

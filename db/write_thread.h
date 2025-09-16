@@ -118,6 +118,7 @@ class WriteThread {
   struct Writer {
     WriteBatch* batch;
     std::vector<WriteBatch*> batches;
+    std::vector<size_t> offsets;
     bool sync;
     bool no_slowdown;
     bool disable_wal;

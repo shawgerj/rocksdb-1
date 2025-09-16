@@ -42,10 +42,9 @@ void to_be_bytes(char* bytearr, size_t num, int pos) {
   }
 }
 
-std::string buildLocator(size_t offset, size_t klen, size_t vlen) {
+std::string buildLocator(size_t offset, size_t vlen) {
   struct wotr_ref loc;
-  size_t final_offset = offset + klen + sizeof(item_header);
-  loc.offset = final_offset;
+  loc.offset = offset;
   loc.len = vlen;
   return std::string(reinterpret_cast<char*>(&loc), sizeof(struct wotr_ref));
 }
@@ -62,6 +61,7 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
   std::string v = "value1";
   
   batch.Put(k, v);
+  // Write with non-null offsets puts data in WOTR and locator in LSM tree
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
   ASSERT_EQ(offsets.size(), 1);
 
@@ -71,13 +71,15 @@ TEST_P(DBWriteTest, SingleWriteWOTR) {
 
   WriteBatch batch2;
   std::string k_ext = "key1ext";
-  std::string locator = buildLocator(offsets[0], k.length(), v.length());
+  std::string locator = buildLocator(offsets[0], v.length());
   batch2.Put(k_ext, locator);
-  
+
+  // Write with null offsets vector only puts locator in LSM tree
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, nullptr));
 
   PinnableSlice value2;
-  ASSERT_OK(dbfull()->GetPExternal(ReadOptions(), k_ext, &value2));
+  // GetExternal should read the same data for k_ext and k in this test.
+  ASSERT_OK(dbfull()->GetExternal(ReadOptions(), k_ext, &value2));
   ASSERT_EQ(value2.ToString(), v);
   w->CloseAndDestroy();
 }
@@ -107,7 +109,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch, &offsets));
 
   for (int i = 0; i < 2; i++) {
-    std::string loc = buildLocator(offsets[i], keys[i].length(), values[i].length());
+    std::string loc = buildLocator(offsets[i], values[i].length());
     locators.push_back(loc);
   }
 
@@ -117,7 +119,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
   ASSERT_OK(dbfull()->Write(WriteOptions(), &batch2, &offsets));
 
   for (int i = 2; i < num_writes; i++) {
-    std::string loc = buildLocator(offsets[i], keys[i].length(), values[i].length());
+    std::string loc = buildLocator(offsets[i], values[i].length());
     locators.push_back(loc);
   }
 
@@ -144,7 +146,7 @@ TEST_P(DBWriteTest, ManyWriteWOTR) {
 
   for (int i = 0; i < num_writes; i++) {
     PinnableSlice val;
-    ASSERT_OK(dbfull()->GetPExternal(ReadOptions(), keys_ext[i], &val));
+    ASSERT_OK(dbfull()->GetExternal(ReadOptions(), keys_ext[i], &val));
     ASSERT_EQ(val.ToString(), values[i]);
   }
   
@@ -156,7 +158,6 @@ TEST_P(DBWriteTest, DeleteWriteWithWOTR) {
   auto w = std::make_shared<Wotr>(logfile.c_str());
   ASSERT_OK(dbfull()->SetExternal(w.get(), false));
 
-//  std::vector<size_t> offsets;
   WriteBatch batch;
   batch.Put("key1", "value1");
   batch.Put("key2", "value2");
@@ -187,7 +188,6 @@ TEST_P(DBWriteTest, DeleteAfterWriteWithWOTR) {
   auto w = std::make_shared<Wotr>(logfile.c_str());
   ASSERT_OK(dbfull()->SetExternal(w.get(), false));
 
-//  std::vector<size_t> offsets;
   WriteBatch batch;
   batch.Put("key1", "value1");
   batch.Put("key2", "value2");
@@ -283,8 +283,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
   ASSERT_OK(dbfull()->SetExternal(w.get(), false));
   
   std::vector<port::Thread> threads;
-  // we don't know how the writes will be grouped. So count offsets generated
-  // per thread, and ensure it all adds up to 2048. 
+
   std::atomic<uint32_t> total_offsets(0);
   for (int t = 0; t < kNumThreads; t++) {
     threads.push_back(port::Thread(
@@ -305,6 +304,7 @@ TEST_P(DBWriteTest, MultiThreadWOTR) {
               batches.push_back(batch);
             }
             dbfull()->MultiBatchWrite(opt, std::move(batches), &offsets);
+	    ASSERT_EQ(offsets.size(), kBatchSize * kNumBatch);
             total_offsets += offsets.size();
           }
         },

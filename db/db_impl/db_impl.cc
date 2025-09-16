@@ -300,8 +300,8 @@ Status DBImpl::SetExternal(void* storage, bool recover) {
       uint32_t cfid = witer.GetCfID();
       if (cfid < numcfs) {
 	struct wotr_ref ref;
-	ref.offset = witer.position();
-	ref.len = sizeof(item_header) + witer.key_size() + witer.value_size();
+	ref.offset = witer.position() + sizeof(item_header) + witer.key_size();
+	ref.len = witer.value_size();
 	
 	// size_t iterpos = witer.position();
 	// std::string entry_offset(reinterpret_cast<const char*>(&iterpos), sizeof(size_t));
@@ -1552,6 +1552,7 @@ ColumnFamilyHandle* DBImpl::PersistentStatsColumnFamily() const {
 Status DBImpl::Get(const ReadOptions& read_options,
                    ColumnFamilyHandle* column_family, const Slice& key,
                    PinnableSlice* value) {
+  LOG_KEY("Get", key);
   return GetImpl(read_options, column_family, key, value);
 }
 
@@ -1571,24 +1572,12 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
     std::cout << "No wotr! Thirsty!" << std::endl;
   }
 
-  len = ref->len;
-  /*           dataptr       len
-   *        <==========> <=========>
-   *        +-----+-----+-----------+
-   * key -> | hdr | key |   value   |        
-   *        +-----+-----+-----------+
-   *        ^
-   *       data
-   * WotrGet() modifies offset to point to the value within `data`
-   *           modifies len to refer to the length of the value
-   * `data` is safe to free after assignment to `value`
-   */
-  if (wotr_->WotrGet(ref->offset, &data, &len, &dataptr) < 0) {
+  if (wotr_->WotrGet(ref->offset, &data, ref->len) < 0) {
     return Status::IOError("GetExternal error reading from logfile.");
   }
 
   if (value != nullptr) {
-    value->assign(data + dataptr, len);
+    value->assign(data, ref->len);
   }
   free(data);
 
@@ -1598,6 +1587,7 @@ Status DBImpl::GetExternalImpl(PinnableSlice& loc, std::string* value) {
 Status DBImpl::GetExternal(const ReadOptions& options,
                    ColumnFamilyHandle* column_family, const Slice& key,
                    PinnableSlice* value) {
+  LOG_KEY("GetExternal", key);
     assert(value != nullptr);
     PinnableSlice pinnable_val;
     auto s = GetImpl(options, column_family, key, &pinnable_val);
@@ -1613,46 +1603,6 @@ Status DBImpl::GetExternal(const ReadOptions& options,
     return s;
 }
 
-Status DBImpl::GetPExternalImpl(PinnableSlice& loc, std::string* value) {
-    PERF_CPU_TIMER_GUARD(get_cpu_nanos, env_);
-    StopWatch sw(env_, stats_, WOTR_GET);
-    char* data;
-    if (loc.empty()) {
-      std::cout << "Slice was empty! No LSM data at that key" << std::endl;
-    }
-    const struct wotr_ref* ref = reinterpret_cast<const struct wotr_ref*>(loc.data());
-
-    if (wotr_ == nullptr) {
-      std::cout << "No wotr! Thirsty!" << std::endl;
-    }
-
-    if (wotr_->WotrPGet(ref->offset, &data, ref->len) < 0) {
-      return Status::IOError("GetPExternal error reading from logfile.");
-    }
-
-    value->assign(data, ref->len);
-    free(data);
-    return Status::OK();
-}
-
-Status DBImpl::GetPExternal(const ReadOptions& options,
-                            ColumnFamilyHandle* column_family, const Slice& key,
-                            PinnableSlice* value) {
-    assert(value != nullptr);
-    PinnableSlice pinnable_val;
-    auto s = GetImpl(options, column_family, key, &pinnable_val);
-    if (!s.ok()) {
-        return s;
-    }
-
-    s = GetPExternalImpl(pinnable_val, value->GetSelf());
-    if (s.ok()) {
-      value->PinSelf();
-    }
-    return s;
-}
-
- 
 Status DBImpl::GetImpl(const ReadOptions& read_options,
                        ColumnFamilyHandle* column_family, const Slice& key,
                        PinnableSlice* pinnable_val, bool* value_found,
@@ -3858,6 +3808,16 @@ Status DBImpl::IngestExternalFiles(
   if (args.empty()) {
     return Status::InvalidArgument("ingestion arg list is empty");
   }
+
+  // shawgerj log ingest files
+  printf("INGEST:");
+  for (const auto& arg : args) {
+    for (const auto& filename : arg.external_files) {
+      printf(" %s", filename.c_str());
+    }
+  }
+  printf("\n");
+  
   {
     std::unordered_set<ColumnFamilyHandle*> unique_cfhs;
     for (const auto& arg : args) {
