@@ -2117,6 +2117,7 @@ Status DB::PutExternal(const WriteOptions& opt,
                        ColumnFamilyHandle* column_family,
                        const Slice& key, const Slice& value,
                        size_t* offset) {
+  std::cout << "Entering PutExternal" << std::endl;
   std::vector<size_t> offsets;
   if (nullptr == opt.timestamp) {
     // Pre-allocate size of write batch conservatively.
@@ -2125,12 +2126,16 @@ Status DB::PutExternal(const WriteOptions& opt,
     WriteBatch batch(key.size() + value.size() + 24);
     Status s = batch.Put(column_family, key, value);
     if (!s.ok()) {
+      std::cout << "Bad batch put " << s.ToString() << std::endl;
       return s;
     }
 
     s = Write(opt, &batch, &offsets);
     if (s.ok()) {
+      std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
       *offset = offsets[0];
+    } else {
+      std::cout << "Bad write " << s.ToString() << std::endl;
     }
     return s;
   }
@@ -2141,6 +2146,7 @@ Status DB::PutExternal(const WriteOptions& opt,
                    ts_sz);
   Status s = batch.Put(column_family, key, value);
   if (!s.ok()) {
+    std::cout << "Bad batch put " << s.ToString() << std::endl;
     return s;
   }
   s = batch.AssignTimestamp(*ts);
@@ -2150,7 +2156,10 @@ Status DB::PutExternal(const WriteOptions& opt,
 
   s = Write(opt, &batch, &offsets);
   if (s.ok()) {
+    std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
     *offset = offsets[0];
+  } else {
+    std::cout << "Bad write " << s.ToString() << std::endl;
   }
   return s;
 }
