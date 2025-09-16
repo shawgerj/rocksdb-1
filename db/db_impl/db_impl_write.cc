@@ -2145,8 +2145,12 @@ Status DB::PutExternal(const WriteOptions& opt,
 
     s = Write(opt, &batch, &offsets);
     if (s.ok()) {
-      std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
-      *offset = offsets[0];
+      if (offsets.size() == 0) {
+	std::cout << "WARN offset not returned from PutExternal!" << std::endl;
+	*offset = 0;
+      } else {
+	*offset = offsets[0];
+      }
     } else {
       std::cout << "Bad write " << s.ToString() << std::endl;
     }
@@ -2169,8 +2173,12 @@ Status DB::PutExternal(const WriteOptions& opt,
 
   s = Write(opt, &batch, &offsets);
   if (s.ok()) {
-    std::cout << "copying offset from vec of size " << offsets.size() << std::endl;
-    *offset = offsets[0];
+    if (offsets.size() == 0) {
+      std::cout << "WARN offset not returned from PutExternal!" << std::endl;
+      *offset = 0;
+    } else {
+      *offset = offsets[0];
+    }
   } else {
     std::cout << "Bad write " << s.ToString() << std::endl;
   }
